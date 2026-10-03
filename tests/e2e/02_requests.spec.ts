@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signUp, logIn } from "./helpers";
+import { signUp } from "./helpers";
 
 // 1x1 transparent PNG
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
@@ -51,7 +51,8 @@ test("the describe route refuses anonymous callers and photos outside the caller
 test("tailors see the request in open requests; another customer gets a 404 on its page", async ({ browser, page }) => {
   await signUp(page, "customer", "Owner");
   await page.goto("/customer/requests/new");
-  await page.getByLabel("Title").fill("Visible to tailors");
+  const title = `Visible to tailors ${Date.now()}`;
+  await page.getByLabel("Title").fill(title);
   await page.getByLabel("Description").fill("A plain navy blazer.");
   await page.getByRole("button", { name: /post request/i }).click();
   await expect(page).toHaveURL(/\/customer\/requests\/[0-9a-f-]{36}$/);
@@ -60,10 +61,10 @@ test("tailors see the request in open requests; another customer gets a 404 on i
   const tailorCtx = await browser.newContext();
   const tailorPage = await tailorCtx.newPage();
   await signUp(tailorPage, "tailor", "Looker");
-  await expect(tailorPage.getByRole("link", { name: /visible to tailors/i })).toBeVisible();
-  await tailorPage.getByRole("link", { name: /visible to tailors/i }).click();
+  await expect(tailorPage.getByRole("link", { name: title })).toBeVisible();
+  await tailorPage.getByRole("link", { name: title }).click();
   await expect(tailorPage).toHaveURL(new RegExp(`/tailor/requests/${id}$`));
-  await expect(tailorPage.getByRole("heading", { level: 1 })).toContainText("Visible to tailors");
+  await expect(tailorPage.getByRole("heading", { level: 1 })).toContainText(title);
   await tailorCtx.close();
 
   const otherCtx = await browser.newContext();
