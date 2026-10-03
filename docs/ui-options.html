@@ -1,0 +1,363 @@
+<title>MyTailor UI Directions</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Alegreya+Sans:wght@400;500;700&family=Archivo:wdth,wght@62..125,400..800&family=Outfit:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+  /* Layout: a quiet comparison chrome; each direction is a full-width row with a desktop frame and a phone frame side by side. */
+  :root {
+    --bg: #f1f0ec; --fg: #1c1b19; --muted: #6a665f; --line: #d9d5cd; --card: #ffffff; --accent: #2b2b2b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #141517; --fg: #ebe9e4; --muted: #9b978f; --line: #2c2e32; --card: #1d1f22; --accent: #e8e6e0; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #141517; --fg: #ebe9e4; --muted: #9b978f; --line: #2c2e32; --card: #1d1f22; --accent: #e8e6e0; color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 "Figtree", system-ui, sans-serif; padding-block: 0 48px; }
+  .wrap { padding-inline: 16px; max-width: 1240px; margin: 0 auto; }
+  .intro { padding-block: 28px 8px; max-width: 64ch; }
+  .intro h1 { font: 600 26px/1.2 "Outfit", system-ui, sans-serif; margin: 0 0 8px; text-wrap: balance; }
+  .intro p { margin: 0 0 6px; color: var(--muted); }
+  .jump { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 0; }
+  .jump a { color: var(--fg); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-weight: 500; }
+  .jump a:hover, .jump a:focus-visible { border-color: var(--fg); outline: none; }
+
+  .dir { padding-block: 36px 8px; border-top: 1px solid var(--line); margin-top: 28px; }
+  .dir-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px 32px; margin-bottom: 18px; max-width: 78ch; }
+  .dir-head h2 { margin: 0; font: 600 22px/1.2 "Outfit", system-ui, sans-serif; }
+  .dir-head h2 span { color: var(--muted); font-weight: 500; }
+  .dir-head p { margin: 0; color: var(--muted); }
+  .dir-head .say { color: var(--fg); font-weight: 500; }
+
+  .frames { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .frame { container-type: inline-size; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); flex: 0 0 auto; }
+  .frame.desktop { width: 780px; }
+  .frame.phone { width: 390px; }
+  .frame-label { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  .frame-col { min-width: 0; }
+  @media (max-width: 1240px) { .frame.desktop { zoom: .82; } }
+  @media (max-width: 1000px) { .frame.desktop { zoom: .62; } }
+  @media (max-width: 700px) { .frame.desktop { zoom: .45; } .frame.phone { zoom: .9; } }
+  @media (max-width: 440px) { .frame.desktop { zoom: .42; } .frame.phone { zoom: .85; } }
+
+  /* ------------------------------------------------------------------ shared mock skeleton (unstyled) */
+  .app { min-height: 100%; }
+  .app input, .app textarea { font: inherit; width: 100%; display: block; }
+  .app textarea { resize: none; height: 72px; }
+  .app button { font: inherit; cursor: pointer; }
+  .app h1, .app h2, .app p, .app dl, .app dd, .app dt { margin: 0; }
+  .app label { display: block; }
+  .app .links a { text-decoration: none; }
+  .page { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+  @container (min-width: 700px) { .page { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; } .crumb { grid-column: 1 / -1; } }
+  .side { display: grid; gap: 16px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .photo { display: grid; place-items: center; aspect-ratio: 16 / 7; max-width: 100%; }
+
+  /* ================================================================== A &middot; Pattern Paper */
+  .dirA {
+    --bg: #e8dcc0; --surface: #faf5e8; --ink: #241f19; --pencil: #2c4d9b; --muted: #6d6252; --ok: #2c6a49; --no: #9a3a2a;
+    --fd: "Fraunces", Georgia, serif; --fb: "Alegreya Sans", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); font-family: var(--fb);
+    background-image: radial-gradient(rgba(44, 77, 155, .16) .7px, transparent .8px); background-size: 14px 14px;
+  }
+  .dirA .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; border-bottom: 1px solid rgba(44, 77, 155, .4); }
+  .dirA .brand { font: 600 22px/1 var(--fd); font-variation-settings: "opsz" 144; letter-spacing: -.01em; }
+  .dirA .links { display: flex; gap: 18px; font-weight: 500; }
+  .dirA .links a { color: var(--muted); border-bottom: 2px solid transparent; padding-bottom: 2px; }
+  .dirA .links a.on { color: var(--ink); border-color: var(--pencil); }
+  .dirA .who { display: grid; text-align: right; line-height: 1.15; font-size: 13px; }
+  .dirA .who small { color: var(--pencil); font-style: italic; font-family: var(--fd); }
+  .dirA .main { padding: 22px 24px 32px; }
+  .dirA .crumb { font: italic 15px/1 var(--fd); color: var(--pencil); margin-bottom: 14px; }
+  .dirA .req-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; }
+  .dirA h1 { font: 500 40px/1.02 var(--fd); font-variation-settings: "opsz" 144; letter-spacing: -.02em; text-wrap: balance; max-width: 16ch; }
+  .dirA .meta { color: var(--muted); margin-top: 10px; }
+  .dirA .photo { margin-top: 18px; border: 1px dashed var(--pencil); background: rgba(250, 245, 232, .7); color: var(--pencil); font: italic 16px var(--fd); position: relative; }
+  .dirA .photo::before, .dirA .photo::after { content: ""; position: absolute; width: 10px; height: 10px; border-left: 1px solid var(--pencil); border-top: 1px solid var(--pencil); }
+  .dirA .photo::before { left: -1px; top: -1px; } .dirA .photo::after { right: -1px; bottom: -1px; transform: rotate(180deg); }
+  .dirA .desc { margin-top: 16px; font-size: 17px; line-height: 1.55; max-width: 58ch; }
+  .dirA .pill { display: inline-block; font: 500 13px/1 var(--fb); padding: 6px 10px; border: 1px solid currentColor; border-radius: 2px; letter-spacing: .01em; }
+  .dirA .pill.open { color: var(--ok); } .dirA .pill.pending { color: var(--pencil); } .dirA .pill.declined { color: var(--no); }
+  .dirA .piece { background: var(--surface); border: 1px dashed var(--pencil); padding: 18px; position: relative; }
+  .dirA .piece::before { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(44, 77, 155, .18); pointer-events: none; }
+  .dirA .piece h2 { font: 500 24px/1.1 var(--fd); font-variation-settings: "opsz" 72; }
+  .dirA .bid-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .dirA label { font-size: 13px; color: var(--muted); margin-top: 12px; }
+  .dirA .unit { font: italic 13px var(--fd); color: var(--pencil); margin-left: 4px; }
+  .dirA input, .dirA textarea { background: transparent; border: 0; border-bottom: 1px solid var(--pencil); padding: 6px 0; color: var(--ink); font-size: 17px; }
+  .dirA input { font-family: var(--fd); font-size: 22px; font-variant-numeric: tabular-nums; }
+  .dirA input:focus, .dirA textarea:focus { outline: none; border-bottom-width: 2px; }
+  .dirA button { margin-top: 18px; width: 100%; background: var(--pencil); color: #fbf7ec; border: 0; padding: 12px 16px; font-weight: 700; font-size: 15px; border-radius: 2px; }
+  .dirA .hint { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .dirA dl { display: grid; gap: 10px; margin-top: 12px; }
+  .dirA dl div { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid rgba(44, 77, 155, .25); padding-bottom: 6px; }
+  .dirA dt { color: var(--muted); font-size: 14px; }
+  .dirA dd { font: 500 26px/1 var(--fd); font-variant-numeric: tabular-nums; }
+  .dirA dd small { font: italic 14px var(--fd); color: var(--muted); margin-left: 4px; }
+
+  /* ================================================================== B &middot; Cutting Table */
+  .dirB {
+    --bg: #2a2e33; --surface: #f4f4f1; --ink: #121417; --tape: #f2c14e; --muted: #5d646e; --ok: #2d7a4f; --no: #c0392b; --line: #c9cbc6;
+    --fa: "Archivo", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); font-family: var(--fa); font-size: 14px;
+  }
+  .dirB .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 16px; background: #1d2024; color: #e9eae7; border-bottom: 3px solid var(--tape); }
+  .dirB .brand { font-weight: 800; font-variation-settings: "wdth" 75; font-size: 20px; letter-spacing: .02em; text-transform: uppercase; }
+  .dirB .links { display: flex; gap: 2px; }
+  .dirB .links a { color: #c9ccc8; padding: 6px 10px; font-weight: 600; font-variation-settings: "wdth" 90; }
+  .dirB .links a.on { background: var(--tape); color: var(--ink); }
+  .dirB .who { display: grid; text-align: right; line-height: 1.1; font-size: 12px; color: #c9ccc8; }
+  .dirB .who b { color: #fff; }
+  .dirB .main { padding: 14px 16px 24px; }
+  .dirB .page { gap: 12px; }
+  .dirB .side { gap: 12px; }
+  .dirB .crumb { color: #9aa0a8; font-size: 12px; margin-bottom: 2px; font-variation-settings: "wdth" 90; }
+  .dirB .ticket { background: var(--surface); border-top: 0; position: relative; padding: 14px 16px 16px; }
+  .dirB .ticket::before { content: ""; display: block; position: absolute; left: 0; right: 0; top: -6px; height: 6px; background: radial-gradient(circle at 6px 6px, transparent 3.5px, var(--surface) 4px) left top / 12px 12px repeat-x; }
+  .dirB .tape { display: flex; justify-content: space-between; align-items: center; background: var(--tape); color: var(--ink); font-weight: 800; font-size: 12px; letter-spacing: .04em; padding: 6px 10px; margin: -14px -16px 12px; background-image: repeating-linear-gradient(90deg, rgba(0, 0, 0, .55) 0 1px, transparent 1px 8px); background-size: 100% 5px; background-repeat: no-repeat; background-position: bottom; }
+  .dirB h1 { font-weight: 800; font-variation-settings: "wdth" 80; font-size: 28px; line-height: 1; letter-spacing: -.01em; text-wrap: balance; }
+  .dirB .meta { color: var(--muted); margin-top: 6px; font-size: 13px; }
+  .dirB .photo { margin-top: 12px; background: #1d2024; color: var(--tape); font-weight: 700; font-size: 12px; letter-spacing: .06em; }
+  .dirB .desc { margin-top: 12px; line-height: 1.45; max-width: 60ch; }
+  .dirB .pill { display: inline-block; font-weight: 800; font-size: 11px; letter-spacing: .06em; padding: 4px 8px; }
+  .dirB .pill.open { background: var(--ok); color: #fff; } .dirB .pill.pending { background: var(--tape); color: var(--ink); } .dirB .pill.declined { background: var(--no); color: #fff; }
+  .dirB .bid-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .dirB h2 { font-weight: 800; font-variation-settings: "wdth" 80; font-size: 18px; line-height: 1; }
+  .dirB label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .04em; margin-top: 10px; }
+  .dirB .unit { color: var(--ink); margin-left: 4px; }
+  .dirB input, .dirB textarea { margin-top: 4px; border: 2px solid var(--ink); background: #fff; padding: 7px 9px; color: var(--ink); font-size: 14px; }
+  .dirB input { font-weight: 700; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .dirB input:focus, .dirB textarea:focus { outline: none; border-color: var(--tape); box-shadow: inset 0 0 0 1px var(--ink); }
+  .dirB button { margin-top: 12px; width: 100%; background: var(--ink); color: var(--tape); border: 0; padding: 11px; font-weight: 800; font-size: 14px; letter-spacing: .04em; }
+  .dirB .hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .dirB .field { background: #1d2024; color: #e9eae7; padding: 14px 16px 16px; }
+  .dirB .field h2 { color: #fff; }
+  .dirB dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .dirB dt { font-size: 11px; color: #9aa0a8; letter-spacing: .04em; }
+  .dirB dd { font-weight: 800; font-size: 26px; line-height: 1.1; color: var(--tape); font-variant-numeric: tabular-nums; font-variation-settings: "wdth" 85; }
+  .dirB dd small { font-size: 12px; color: #c9ccc8; font-weight: 600; margin-left: 2px; }
+  .dirB .field .hint { color: #9aa0a8; }
+
+  /* ================================================================== C &middot; Swatch Book */
+  .dirC {
+    --bg: #f6f3ee; --surface: #ffffff; --ink: #1f1c19; --muted: #777069; --line: #e6e0d7; --customer: #8c3a5e; --tailor: #2b6a5b; --tailor-soft: #e3efea; --pend: #f6e7c6; --pend-ink: #7a4f00; --no: #b5472f; --no-soft: #f7e1db;
+    --fd: "Outfit", system-ui, sans-serif; --fb: "Figtree", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink); font-family: var(--fb); font-size: 15px;
+  }
+  .dirC .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .dirC .brand { font: 700 20px/1 var(--fd); letter-spacing: -.01em; }
+  .dirC .links { display: flex; gap: 4px; }
+  .dirC .links a { color: var(--muted); padding: 7px 12px; border-radius: 999px; font-weight: 500; }
+  .dirC .links a.on { background: var(--tailor-soft); color: var(--tailor); }
+  .dirC .who { display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 1.15; }
+  .dirC .who .av { width: 32px; height: 32px; border-radius: 50%; background: var(--tailor); color: #fff; display: grid; place-items: center; font: 600 13px var(--fd); }
+  .dirC .who small { color: var(--tailor); font-weight: 600; }
+  .dirC .main { padding: 18px 20px 28px; }
+  .dirC .crumb { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+  .dirC .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+  .dirC .card.raised { box-shadow: 0 10px 30px rgba(43, 106, 91, .12); border-color: transparent; }
+  .dirC .req-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; }
+  .dirC h1 { font: 600 27px/1.15 var(--fd); letter-spacing: -.01em; text-wrap: balance; }
+  .dirC .meta { color: var(--muted); margin-top: 6px; font-size: 14px; }
+  .dirC .photo { margin-top: 16px; border-radius: 14px; background: var(--tailor-soft); color: var(--tailor); font-weight: 600; outline: 2px dashed rgba(43, 106, 91, .45); outline-offset: -8px; }
+  .dirC .desc { margin-top: 14px; line-height: 1.55; max-width: 58ch; }
+  .dirC .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 11px; font-size: 13px; font-weight: 600; }
+  .dirC .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .dirC .pill.open { background: var(--tailor-soft); color: var(--tailor); }
+  .dirC .pill.pending { background: var(--pend); color: var(--pend-ink); }
+  .dirC .pill.declined { background: var(--no-soft); color: var(--no); }
+  .dirC .bid-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .dirC h2 { font: 600 19px/1.2 var(--fd); }
+  .dirC label { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 12px; }
+  .dirC .unit { color: var(--muted); font-weight: 500; margin-left: 4px; }
+  .dirC input, .dirC textarea { margin-top: 6px; border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; color: var(--ink); }
+  .dirC input { font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 500; }
+  .dirC input:focus, .dirC textarea:focus { outline: none; border-color: var(--tailor); box-shadow: 0 0 0 3px var(--tailor-soft); }
+  .dirC button { margin-top: 16px; width: 100%; background: var(--tailor); color: #fff; border: 0; padding: 12px 16px; font-weight: 600; font-size: 15px; border-radius: 999px; }
+  .dirC .hint { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .dirC dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  .dirC dl div { background: var(--tailor-soft); border-radius: 12px; padding: 10px 10px 8px; outline: 1.5px dashed rgba(43, 106, 91, .4); outline-offset: -5px; }
+  .dirC dt { font-size: 12px; color: var(--tailor); font-weight: 600; }
+  .dirC dd { font: 600 22px/1.15 var(--fd); color: var(--ink); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .dirC dd small { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+  /* phone-width tweaks inside any frame */
+  @container (max-width: 699px) {
+    .dirA h1 { font-size: 32px; }
+    .dirA .links, .dirB .links, .dirC .links { display: none; }
+    .dirB dl, .dirC dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .dirB dd { font-size: 22px; } .dirC dd { font-size: 19px; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <h1>Three directions for MyTailor</h1>
+    <p>Same screen in each: a tailor viewing an open request, with their bid form and the blind-bidding averages. Desktop on the left, phone on the right.</p>
+    <p>Reply with the letter you want, or a mix such as "B's density with C's colours".</p>
+    <nav class="jump"><a href="#a">A &middot; Pattern Paper</a><a href="#b">B &middot; Cutting Table</a><a href="#c">C &middot; Swatch Book</a></nav>
+  </header>
+
+  <section class="dir" id="a">
+    <div class="dir-head">
+      <h2>A <span>&middot; Pattern Paper</span></h2>
+      <p>Editorial and unhurried, drawn from the tailor's own materials: manila pattern paper, blue pencil, chalk-white pieces with notched corners. A soft optical serif carries the personality; everything else stays quiet.</p>
+      <p>Says: this is a craft marketplace, not a gig app. Trade-off: the warm palette needs careful contrast work in dark mode.</p>
+      <p class="say">Say "A".</p>
+    </div>
+    <div class="frames">
+      <div class="frame-col"><p class="frame-label">Desktop</p><div class="frame desktop dirA" data-mock="A"></div></div>
+      <div class="frame-col"><p class="frame-label">Phone</p><div class="frame phone dirA" data-mock="A"></div></div>
+    </div>
+  </section>
+
+  <section class="dir" id="b">
+    <div class="dir-head">
+      <h2>B <span>&middot; Cutting Table</span></h2>
+      <p>Dense and high contrast, like a job docket pinned above the cutting table: slate board, perforated tickets, and a tape-measure yellow that marks whatever needs attention. One condensed grotesk does all the work, numbers set like measurements.</p>
+      <p>Says: fast, operational, built for people with their hands full. Trade-off: the least "pretty" of the three; charm comes from precision, not softness.</p>
+      <p class="say">Say "B".</p>
+    </div>
+    <div class="frames">
+      <div class="frame-col"><p class="frame-label">Desktop</p><div class="frame desktop dirB" data-mock="B"></div></div>
+      <div class="frame-col"><p class="frame-label">Phone</p><div class="frame phone dirB" data-mock="B"></div></div>
+    </div>
+  </section>
+
+  <section class="dir" id="c">
+    <div class="dir-head">
+      <h2>C <span>&middot; Swatch Book</span></h2>
+      <p>Friendly and rounded, borrowing from a fabric swatch book: stitched dashed edges, two role colours (mulberry for customers, pine for tailors) so you always know whose side of the marketplace you are on. Only the thing you act on is raised.</p>
+      <p>Says: approachable for first-time customers, familiar to anyone who has used a modern app. Trade-off: the most conventional; distinctiveness lives in the details.</p>
+      <p class="say">Say "C".</p>
+    </div>
+    <div class="frames">
+      <div class="frame-col"><p class="frame-label">Desktop</p><div class="frame desktop dirC" data-mock="C"></div></div>
+      <div class="frame-col"><p class="frame-label">Phone</p><div class="frame phone dirC" data-mock="C"></div></div>
+    </div>
+  </section>
+</div>
+
+<template id="mockA">
+  <div class="app">
+    <header class="nav"><span class="brand">MyTailor</span><nav class="links"><a class="on" href="#a">Open requests</a><a href="#a">My orders</a></nav><span class="who"><b>Amal Atelier</b><small>tailor</small></span></header>
+    <div class="main">
+      <p class="crumb">Open requests &rarr; Navy wool two-piece suit</p>
+      <div class="page">
+        <section class="request">
+          <div class="req-head"><h1>Navy wool two-piece suit</h1><span class="pill open">Open &middot; 3 bids</span></div>
+          <p class="meta">Posted by Cara C. two days ago</p>
+          <div class="photo">reference photo</div>
+          <p class="desc">Slim-fit navy suit in mid-weight wool, notch lapel, single vent, for an October wedding.</p>
+        </section>
+        <aside class="side">
+          <section class="piece">
+            <div class="bid-head"><h2>Your bid</h2><span class="pill pending">Pending</span></div>
+            <div class="field-row">
+              <label>Price<span class="unit">KWD</span><input id="a-price" value="300"></label>
+              <label>Turnaround<span class="unit">days</span><input id="a-days" value="14"></label>
+            </div>
+            <label>Note<textarea id="a-note">Super 120s wool, two fittings included.</textarea></label>
+            <button type="button">Update bid</button>
+            <p class="hint">Revision 2. You can revise until the request closes.</p>
+          </section>
+          <section class="piece">
+            <h2>On the table</h2>
+            <dl>
+              <div><dt>Bids</dt><dd>3</dd></div>
+              <div><dt>Average price</dt><dd>333<small>KWD</small></dd></div>
+              <div><dt>Average turnaround</dt><dd>15<small>days</small></dd></div>
+            </dl>
+            <p class="hint">You only ever see averages, and only once three bids exist.</p>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="mockB">
+  <div class="app">
+    <header class="nav"><span class="brand">MyTailor</span><nav class="links"><a class="on" href="#b">Open requests</a><a href="#b">My orders</a></nav><span class="who"><b>Amal Atelier</b>Tailor</span></header>
+    <div class="main">
+      <p class="crumb">Open requests / Navy wool two-piece suit</p>
+      <div class="page">
+        <section class="ticket">
+          <div class="tape"><span>Request R-0421</span><span class="pill open">Open &middot; 3 bids</span></div>
+          <h1>Navy wool two-piece suit</h1>
+          <p class="meta">Posted by Cara C. &middot; 2 days ago</p>
+          <div class="photo">REFERENCE PHOTO</div>
+          <p class="desc">Slim-fit navy suit in mid-weight wool, notch lapel, single vent, for an October wedding.</p>
+        </section>
+        <aside class="side">
+          <section class="ticket">
+            <div class="bid-head"><h2>Your bid</h2><span class="pill pending">PENDING &middot; REV 2</span></div>
+            <div class="field-row">
+              <label>PRICE<span class="unit">KWD</span><input id="b-price" value="300"></label>
+              <label>TURNAROUND<span class="unit">DAYS</span><input id="b-days" value="14"></label>
+            </div>
+            <label>NOTE<textarea id="b-note">Super 120s wool, two fittings included.</textarea></label>
+            <button type="button">UPDATE BID</button>
+            <p class="hint">Editable until the request closes.</p>
+          </section>
+          <section class="field">
+            <h2>Field</h2>
+            <dl>
+              <div><dt>BIDS</dt><dd>3</dd></div>
+              <div><dt>AVG PRICE</dt><dd>333<small>KWD</small></dd></div>
+              <div><dt>AVG DAYS</dt><dd>15</dd></div>
+            </dl>
+            <p class="hint">Averages only. Unlocks at 3 bids.</p>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="mockC">
+  <div class="app">
+    <header class="nav"><span class="brand">MyTailor</span><nav class="links"><a class="on" href="#c">Open requests</a><a href="#c">My orders</a></nav><span class="who"><span class="av">AA</span><span><b>Amal Atelier</b><br><small>Tailor</small></span></span></header>
+    <div class="main">
+      <p class="crumb">Open requests &rsaquo; Navy wool two-piece suit</p>
+      <div class="page">
+        <section class="card">
+          <div class="req-head"><h1>Navy wool two-piece suit</h1><span class="pill open">Open &middot; 3 bids</span></div>
+          <p class="meta">Posted by Cara C. &middot; 2 days ago</p>
+          <div class="photo">Reference photo</div>
+          <p class="desc">Slim-fit navy suit in mid-weight wool, notch lapel, single vent, for an October wedding.</p>
+        </section>
+        <aside class="side">
+          <section class="card raised">
+            <div class="bid-head"><h2>Your bid</h2><span class="pill pending">Pending</span></div>
+            <div class="field-row">
+              <label>Price<span class="unit">KWD</span><input id="c-price" value="300"></label>
+              <label>Turnaround<span class="unit">days</span><input id="c-days" value="14"></label>
+            </div>
+            <label>Note<textarea id="c-note">Super 120s wool, two fittings included.</textarea></label>
+            <button type="button">Update bid</button>
+            <p class="hint">Revision 2 &middot; You can revise until the request closes.</p>
+          </section>
+          <section class="card">
+            <h2>Other bids</h2>
+            <dl>
+              <div><dt>Bids</dt><dd>3</dd></div>
+              <div><dt>Avg price</dt><dd>333 <small>KWD</small></dd></div>
+              <div><dt>Avg days</dt><dd>15</dd></div>
+            </dl>
+            <p class="hint">You see averages only, and only once there are three bids.</p>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  // Stamp each direction's mock into its desktop and phone frames (same markup, container queries do the rest).
+  document.querySelectorAll("[data-mock]").forEach((frame, i) => {
+    const tpl = document.getElementById("mock" + frame.dataset.mock);
+    const node = tpl.content.cloneNode(true);
+    node.querySelectorAll("[id]").forEach((el) => { el.id = el.id + "-" + (frame.classList.contains("phone") ? "m" : "d"); });
+    frame.appendChild(node);
+  });
+</script>
