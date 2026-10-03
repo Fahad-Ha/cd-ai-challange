@@ -10,8 +10,8 @@
     "test:db": "node --import tsx --env-file=.env.local --test --test-timeout=30000 \"tests/db/*.test.ts\"",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/lib/types.ts",
-    "seed": "tsx --env-file=.env.local scripts/seed.ts",
-    "tamper": "tsx --env-file=.env.local scripts/tamper.ts"
+    "seed": "tsx --env-file=.env.local scripts/seed.mts",
+    "tamper": "tsx --env-file=.env.local scripts/tamper.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
