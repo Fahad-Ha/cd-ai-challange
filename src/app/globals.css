@@ -1,26 +1,96 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------
+   MyTailor design tokens — "pattern paper, cleanly cut".
+   C's structure (white rounded cards on a warm paper ground, role colours
+   for identity, one raised action card) with A's character (Fraunces for
+   headings and numbers, blue-pencil accent, pattern-piece dashes).
+   ------------------------------------------------------------------ */
+@theme {
+  --color-paper: #f3efe6;
+  --color-surface: #ffffff;
+  --color-ink: #221e19;
+  --color-muted: #6f675d;
+  --color-line: #e3dccf;
+  --color-pencil: #2c4d9b;
+  --color-pencil-soft: #e4eaf7;
+  --color-pencil-deep: #1f3a7a;
+  --color-customer: #8c3a5e;
+  --color-customer-soft: #f5e4ec;
+  --color-tailor: #2b6a5b;
+  --color-tailor-soft: #e3efea;
+  --color-pending: #7a4f00;
+  --color-pending-soft: #f6e7c6;
+  --color-declined: #b5472f;
+  --color-declined-soft: #f7e1db;
+  --color-closed: #6f675d;
+  --color-closed-soft: #ece8e0;
+  --color-danger: #b5472f;
+
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-figtree), system-ui, -apple-system, sans-serif;
+
+  --radius-card: 18px;
+  --radius-field: 10px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html { color-scheme: light; }
+  body {
+    background-color: var(--color-paper);
+    background-image: radial-gradient(rgba(44, 77, 155, 0.13) 0.7px, transparent 0.8px);
+    background-size: 14px 14px;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
+  h1, h2, h3 { font-family: var(--font-display); font-variation-settings: "opsz" 72; letter-spacing: -0.015em; text-wrap: balance; }
+  :focus-visible { outline: 2px solid var(--color-pencil); outline-offset: 2px; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: var(--radius-card); padding: 1.25rem; }
+  .card-raised { background: var(--color-surface); border: 1px solid transparent; border-radius: var(--radius-card); padding: 1.25rem; box-shadow: 0 12px 32px rgba(44, 77, 155, 0.12); }
+  /* the one "pattern piece": dashed pencil outline with notched corners */
+  .piece { position: relative; border: 1px dashed var(--color-pencil); border-radius: 6px; }
+  .piece::before, .piece::after { content: ""; position: absolute; width: 12px; height: 12px; border-left: 1.5px solid var(--color-pencil); border-top: 1.5px solid var(--color-pencil); }
+  .piece::before { left: -1px; top: -1px; border-top-left-radius: 6px; }
+  .piece::after { right: -1px; bottom: -1px; transform: rotate(180deg); border-top-left-radius: 6px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 999px; padding: 0.65rem 1.1rem; font-weight: 600; font-size: 0.95rem; line-height: 1; border: 1.5px solid transparent; cursor: pointer; transition: background-color 120ms, border-color 120ms, color 120ms; }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary { background: var(--color-pencil); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--color-pencil-deep); }
+  .btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-line); }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--color-ink); }
+  .btn-danger { background: var(--color-surface); color: var(--color-danger); border-color: var(--color-declined-soft); }
+  .btn-danger:hover:not(:disabled) { background: var(--color-declined-soft); }
+  .btn-ghost { background: transparent; color: var(--color-muted); }
+  .btn-ghost:hover:not(:disabled) { color: var(--color-ink); background: var(--color-closed-soft); }
+
+  .field { display: grid; gap: 0.35rem; }
+  .field > span { font-size: 0.85rem; font-weight: 600; }
+  .field .unit { color: var(--color-muted); font-weight: 500; margin-left: 0.3rem; }
+  .input { width: 100%; border: 1.5px solid var(--color-line); border-radius: var(--radius-field); background: #fff; padding: 0.6rem 0.8rem; font: inherit; color: var(--color-ink); }
+  .input:focus { outline: none; border-color: var(--color-pencil); box-shadow: 0 0 0 3px var(--color-pencil-soft); }
+  .input-number { font-family: var(--font-display); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+
+  .pill { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 999px; padding: 0.3rem 0.7rem; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill-open, .pill-accepted, .pill-completed, .pill-ready { background: var(--color-tailor-soft); color: var(--color-tailor); }
+  .pill-pending, .pill-in_progress { background: var(--color-pending-soft); color: var(--color-pending); }
+  .pill-declined { background: var(--color-declined-soft); color: var(--color-declined); }
+  .pill-closed { background: var(--color-closed-soft); color: var(--color-closed); }
+
+  .role-chip { display: inline-flex; align-items: center; gap: 0.5rem; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-family: var(--font-display); font-weight: 600; font-size: 0.8rem; }
+  .avatar-customer { background: var(--color-customer); }
+  .avatar-tailor { background: var(--color-tailor); }
+
+  .alert { border-radius: var(--radius-field); padding: 0.7rem 0.9rem; font-size: 0.9rem; }
+  .alert-error { background: var(--color-declined-soft); color: var(--color-declined); }
+  .alert-ok { background: var(--color-tailor-soft); color: var(--color-tailor); }
+
+  .stat { font-family: var(--font-display); font-size: 1.7rem; line-height: 1.1; font-variant-numeric: tabular-nums; font-variation-settings: "opsz" 72; }
+  .stat small { font-family: var(--font-sans); font-size: 0.8rem; color: var(--color-muted); font-weight: 500; margin-left: 0.25rem; }
 }

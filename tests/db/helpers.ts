@@ -4,6 +4,7 @@
  * used only to create/delete throwaway users through the Auth admin API.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "../../src/lib/types.ts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
@@ -20,15 +21,15 @@ export interface TestUser {
   email: string;
   password: string;
   role: Role;
-  client: SupabaseClient; // signed in as this user
+  client: SupabaseClient<Database>; // signed in as this user
 }
 
-export const admin = createClient(url, secretKey, {
+export const admin = createClient<Database>(url, secretKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-export function anonClient(): SupabaseClient {
-  return createClient(url, publishableKey, {
+export function anonClient(): SupabaseClient<Database> {
+  return createClient<Database>(url, publishableKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

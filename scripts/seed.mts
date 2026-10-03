@@ -38,9 +38,9 @@ async function signedIn(email: string) {
   return c;
 }
 
-function must<T>(r: { data: T; error: { message: string } | null }, what: string): T {
-  if (r.error) throw new Error(`${what}: ${r.error.message}`);
-  return r.data;
+function must<T>(r: { data: T; error: { message: string } | null }, what: string): NonNullable<T> {
+  if (r.error || r.data == null) throw new Error(`${what}: ${r.error?.message ?? "no data"}`);
+  return r.data as NonNullable<T>;
 }
 
 console.log(`Seeding ${url}`);

@@ -51,3 +51,5 @@ supabase/.branches
 # superpowers scratch
 .superpowers/
 .playwright-mcp/
+test-results/
+playwright-report/
