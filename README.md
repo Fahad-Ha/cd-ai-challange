@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MyTailor Marketplace
 
-## Getting Started
+A two-sided bespoke-tailoring marketplace: customers post requests (optionally described from a photo by an AI call), tailors bid blind, the customer accepts one bid, and the two of them get a private chat and a linear order pipeline that ends in a review. Built for the CODED Teaching Assistant assessment.
 
-First, run the development server:
+Every access rule is enforced inside Postgres with Supabase row-level security, column grants, triggers, and three locked functions. The app never checks authorization in TypeScript. The proof is the Tampering Test: `docs/TAMPERING.md`. The reasoning is `docs/DESIGN.md`.
+
+## Stack
+
+Next.js 16 (App Router, Server Actions, `proxy.ts`), Tailwind v4, Supabase (Postgres, Auth, Storage, Realtime), OpenRouter for the photo description, Playwright and `node:test` for tests.
+
+## Run it locally
 
 ```bash
+npm install
+npx supabase start                  # local stack (Docker)
+npm run db:reset                    # apply supabase/migrations
+cp .env.example .env.local          # then paste the local keys from `npx supabase status`
+npm run seed                        # four demo accounts, password demo1234
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Demo accounts: `customer@demo.local`, `tailor.a@demo.local`, `tailor.b@demo.local`, `tailor.c@demo.local`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Environment variables (see `.env.example`):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Name | Where it is used |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The app, in the browser and on the server. Public by design; RLS does the protecting. |
+| `SUPABASE_SECRET_KEY` | Only `scripts/seed.mts` and `scripts/tamper.mts`, to create test users. Never referenced by app code. |
+| `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | Only `src/lib/ai.ts` (`server-only`). Without a key the description falls back to a stub. |
 
-## Learn More
+## Tests and evidence
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run test:db     # 47 database tests: every policy, grant, trigger and function, run as real signed-in users
+npm run test:e2e    # 22 browser tests across signup, requests, blind bidding, accept, chat, pipeline, reviews, profile
+npm run build && npm run tamper   # the five attacks from the brief; exits 1 if any succeeds
+npm run lint && npx tsc --noEmit
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. `npx supabase link --project-ref <ref>` then `npx supabase db push` to apply the migrations to the hosted project. In the dashboard, disable email confirmations for demo accounts (Auth → Providers → Email).
+2. Push the repo to GitHub, import it in Vercel, and set the three `NEXT_PUBLIC_`/`OPENROUTER_` variables. Do not add the secret key.
+3. Add the Vercel URL to Supabase Auth → URL configuration.
+4. Point a `.env.hosted` at the project and run `npx tsx --env-file=.env.hosted scripts/seed.mts` and `... scripts/tamper.mts` to seed and re-prove the rules in production.
 
-## Deploy on Vercel
+## Where things are
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+supabase/migrations/   0001 privileges · 0002 profiles · 0003 requests · 0004 bids · 0005 orders
+                       0006 messages · 0007 reviews · 0008 rpcs (accept/decline/advance) · 0009 storage
+src/lib/supabase/      SSR clients (server, browser, proxy)
+src/lib/auth.ts        getProfile / requireRole — role comes from the profiles table, never user_metadata
+src/lib/ai.ts          server-only OpenRouter call
+src/app/               (auth) · customer/requests · tailor/requests · orders · tailors/[id] · api/describe-photo
+src/components/        BidForm, BidStats, BidActions, Chat, StatusStepper, ReviewForm, …
+scripts/               seed.mts, tamper.mts
+tests/db, tests/e2e    database and browser suites
+docs/                  TAMPERING.md, DESIGN.md, PRESENTATION.md, ui-options.html, superpowers/specs
+```

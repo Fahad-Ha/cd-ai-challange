@@ -12,7 +12,8 @@
     "db:types": "supabase gen types typescript --local > src/lib/types.ts",
     "seed": "tsx --env-file=.env.local scripts/seed.mts",
     "tamper": "tsx --env-file=.env.local scripts/tamper.mts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check-bundle": "sh scripts/check-bundle.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
