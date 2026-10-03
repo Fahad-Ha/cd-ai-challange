@@ -88,7 +88,7 @@ test("decline → revise → pending: customer declines, tailor revises, bid is 
 
   const { error } = await customer.client.rpc("decline_bid", { p_bid_id: r.bidA });
   assert.equal(error, null);
-  let a = await tailorA.client.from("bids").select("status").eq("id", r.bidA).single();
+  const a = await tailorA.client.from("bids").select("status").eq("id", r.bidA).single();
   assert.equal(a.data?.status, "declined");
 
   const again = await customer.client.rpc("decline_bid", { p_bid_id: r.bidA });
