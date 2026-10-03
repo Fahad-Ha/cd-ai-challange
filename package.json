@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:db": "node --import tsx --env-file=.env.local --test \"tests/db/*.test.ts\"",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local > src/lib/types.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "tamper": "tsx --env-file=.env.local scripts/tamper.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
