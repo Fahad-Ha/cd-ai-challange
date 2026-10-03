@@ -21,3 +21,21 @@ export async function logIn(page: Page, email: string, password = PASSWORD) {
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /log in/i }).click();
 }
+
+/** Customer-side: post a request through the UI and return its id. */
+export async function createRequestViaUi(page: Page, title: string, description = "A plain description.") {
+  await page.goto("/customer/requests/new");
+  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Description").fill(description);
+  await page.getByRole("button", { name: /post request/i }).click();
+  await expect(page).toHaveURL(/\/customer\/requests\/[0-9a-f-]{36}$/);
+  return page.url().split("/").pop()!;
+}
+
+/** Tailor-side: place or update a bid on the tailor's request page (must already be there). */
+export async function fillBid(page: Page, price: number, days: number, note: string) {
+  await page.getByRole("spinbutton", { name: /price/i }).fill(String(price));
+  await page.getByRole("spinbutton", { name: /turnaround/i }).fill(String(days));
+  await page.getByRole("textbox", { name: /note/i }).fill(note);
+  await page.getByRole("button", { name: /place bid|update bid/i }).click();
+}
