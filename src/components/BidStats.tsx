@@ -12,23 +12,25 @@ export async function BidStats({ requestId }: { requestId: string }) {
     <section className="piece bg-surface/70 p-5">
       <h2 className="text-2xl font-medium">On the table</h2>
       <p className="mt-1 text-sm text-muted">Tailors never see each other&apos;s bids. Only this.</p>
-      <dl className="mt-4 grid grid-cols-3 gap-3">
+      <dl className="mt-4 grid grid-cols-[auto_1fr_1fr] gap-4">
         <div>
           <dt className="text-xs font-semibold text-muted">Bids</dt>
-          <dd className="stat">{count} <small>{count === 1 ? "bid" : "bids"}</small></dd>
+          <dd className="stat">{count}</dd>
         </div>
         <div>
           <dt className="text-xs font-semibold text-muted">Average price</dt>
-          <dd className="stat">{unlocked ? formatKwd(Number(data!.avg_price)) : "–"}</dd>
+          <dd className="stat whitespace-nowrap">{unlocked ? formatKwd(Math.round(Number(data!.avg_price))) : "–"}</dd>
         </div>
         <div>
           <dt className="text-xs font-semibold text-muted">Average turnaround</dt>
           <dd className="stat">{unlocked ? <>{Number(data!.avg_turnaround)} <small>days</small></> : "–"}</dd>
         </div>
       </dl>
-      {!unlocked && (
-        <p className="mt-3 text-xs text-muted">Averages unlock at 3 bids ({count}/3 so far), so no single bid can be worked out from them.</p>
-      )}
+      <p className="mt-3 text-xs text-muted">
+        {unlocked
+          ? `Based on all ${count} bids. Rounded, so no single bid can be worked out from them.`
+          : `${count} ${count === 1 ? "bid" : "bids"} so far. Averages unlock at 3 bids, so no single bid can be worked out from them.`}
+      </p>
     </section>
   );
 }
