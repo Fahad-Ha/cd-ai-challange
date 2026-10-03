@@ -77,7 +77,10 @@ create policy "bid_revisions: visible when the parent bid is"
 
 -- Race guard: an INSERT that passed RLS a millisecond before accept_bid()
 -- committed would otherwise land on a closed request. FOR KEY SHARE waits for
--- accept_bid's FOR UPDATE and re-checks status afterwards.
+-- accept_bid's FOR UPDATE and re-checks status afterwards. (It only blocks
+-- because accept_bid/decline_bid lock the request with FOR UPDATE, not
+-- FOR NO KEY UPDATE; keep them that way.) A closed request is a state error,
+-- not an authorization error, hence P0001.
 create or replace function public.assert_request_open_for_bid()
 returns trigger
 language plpgsql
@@ -87,7 +90,7 @@ as $$
 begin
   perform 1 from public.requests where id = new.request_id and status = 'open' for key share;
   if not found then
-    raise exception 'request is closed' using errcode = '42501';
+    raise exception 'request is closed' using errcode = 'P0001';
   end if;
   return new;
 end;

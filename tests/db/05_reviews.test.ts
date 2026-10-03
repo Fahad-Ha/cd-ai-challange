@@ -56,9 +56,9 @@ test("the customer can review a completed order exactly once", async () => {
   expectCode(dup.error, "23505", "duplicate review");
 });
 
-test("rating must be 1..5", async () => {
-  const bad = await customer.client.from("reviews").insert({ order_id: openOrder, tailor_id: tailor.id, rating: 9, comment: "" });
-  assert.ok(bad.error);
+test("rating must be 1..5 (the CHECK constraint, not the policy, is what refuses it)", async () => {
+  const bad = await customer.client.from("reviews").insert({ order_id: completedOrder, tailor_id: tailor.id, rating: 9, comment: "" });
+  expectCode(bad.error, "23514", "rating out of range");
 });
 
 test("reviews are public to signed-in users and tailor_stats derives rating, count, completed orders", async () => {

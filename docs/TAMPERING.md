@@ -4,7 +4,7 @@ Every rule in MyTailor is enforced inside Postgres (row-level security, column g
 
 That is exactly what `scripts/tamper.mts` does. It creates throwaway accounts, sets up the situations the brief describes, performs each attack with raw `fetch` calls (so the HTTP status is visible, exactly as it would be in the browser's network tab), and prints the result. Run it with `npm run tamper` (local stack) or point it at the hosted project.
 
-The same five attacks, and about forty more edge cases, are also asserted by the database test suite in `tests/db/` (`npm run test:db`, 47 tests), and the three that have a UI are covered again by the browser tests in `tests/e2e/`.
+The same five attacks, and about fifty more edge cases, are also asserted by the database test suite in `tests/db/` (`npm run test:db`, 54 tests, including catalog checks of the actual grants and a deterministic lock-race test), and the three that have a UI are covered again by the browser tests in `tests/e2e/`.
 
 ## Summary
 
@@ -40,9 +40,9 @@ The same five attacks, and about forty more edge cases, are also asserted by the
 
 ### 3. Open an order chat you're not part of by changing the order ID
 
-**Attempt.** As the tailor who lost the bid: fetch the order by id; fetch its messages; POST a message into it; subscribe to Realtime inserts on `messages` filtered by that order id, then have the customer send a message.
+**Attempt.** As the tailor who lost the bid: fetch the order by id; fetch its messages; POST a message into it; subscribe to Realtime inserts on `messages` filtered by that order id, then have the customer send a message. A second subscription by the real tailor acts as a control: the spy's silence only counts if the control received the event.
 
-**What happened.** Order → `[]` (the page calls `notFound()` and returns a 404). Messages → `[]`. POST → HTTP 403 `new row violates row-level security policy for table "messages"`. Realtime delivered zero events to the spy while the real participant received the message.
+**What happened.** Order → `[]` (the page calls `notFound()` and returns a 404). Messages → `[]`. POST → HTTP 403 `new row violates row-level security policy for table "messages"`. Realtime delivered zero events to the spy while the control subscription received the message (`spy 0, participant control ≥ 1` in the output; the control may also receive a message replayed from just before it subscribed).
 
 **Why.** One function, `is_order_participant(order_id)`, answers both "may I read" and "may I write" for messages, and the `orders` SELECT policy is the same predicate. Supabase Realtime runs the subscriber's JWT through the SELECT policy for every changed row before forwarding it, so the `filter` on the channel is a convenience, not a gate.
 
@@ -78,12 +78,12 @@ The same five attacks, and about forty more edge cases, are also asserted by the
     
     [2] Fetch another tailor's full bid on a request you're also bidding on
         attempt : GET /rest/v1/bids?request_id=eq.<request> · GET /rest/v1/bids?id=eq.<B's bid id> · GET /rest/v1/bid_revisions?bid_id=eq.<B's bid id> · POST rpc/request_bid_stats
-        response: list → [{"id":"40830bcd-0f33-4fc4-87b3-3be605f76d23","price":100,"note":"A","tailor_id":"471309aa-df28-4628-8598-0c4976f619dc"}] (only my own row) · direct → HTTP 200 [] · revisions → [] · stats → [{"bid_count":2,"avg_price":null,"avg_turnaround":null}] (2 bids: count only, averages withheld)
+        response: list → [{"id":"504a4a12-f962-409b-bfa6-504880086232","price":100,"note":"A","tailor_id":"967e8895-d7fd-4bbe-8d84-4d917a7fa527"}] (only my own row) · direct → HTTP 200 [] · revisions → [] · stats → [{"bid_count":2,"avg_price":null,"avg_turnaround":null}] (2 bids: count only, averages withheld)
         verdict : HELD ✅
     
     [3] Open an order chat you're not part of by changing the order ID
         attempt : GET /rest/v1/orders?id=eq.<order> · GET /rest/v1/messages?order_id=eq.<order> · POST /rest/v1/messages · Realtime subscribe to messages:order_id=eq.<order>, all as a tailor who lost the bid
-        response: order → [] (page would 404) · messages → [] · POST → HTTP 403 {"code":"42501","details":null,"hint":null,"message":"new row violates row-level security policy for table \"messages\""} · realtime events received: 0
+        response: order → [] (page would 404) · messages → [] · POST → HTTP 403 {"code":"42501","details":null,"hint":null,"message":"new row violates row-level security policy for table \"messages\""} · realtime events: spy 0, participant control 2
         verdict : HELD ✅
     
     [4] Post a review on an order that isn't completed, or on someone else's order
@@ -111,7 +111,7 @@ The same five attacks, and about forty more edge cases, are also asserted by the
 ```bash
 npx supabase start            # local stack
 npm run db:reset              # apply the nine migrations
-npm run test:db               # 47 database tests, all run as real signed-in users
+npm run test:db               # 54 database tests, all run as real signed-in users (plus catalog + lock-race checks)
 OPENROUTER_API_KEY=sk-or-v1-anything npm run build
 npm run tamper                # the five attacks, exits 1 if any succeeds
 ```

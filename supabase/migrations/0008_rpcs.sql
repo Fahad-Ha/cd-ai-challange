@@ -29,6 +29,9 @@ begin
   if v_uid is null then
     raise exception 'not signed in' using errcode = '42501';
   end if;
+  if p_expected_price is null or p_expected_turnaround is null then
+    raise exception 'expected price and turnaround are required' using errcode = 'P0001';
+  end if;
 
   select * into v_bid from public.bids where id = p_bid_id;
   if not found then
@@ -45,12 +48,14 @@ begin
     raise exception 'request is already closed' using errcode = 'P0001';
   end if;
 
-  -- Re-read after the lock: a revision or decline may have landed meanwhile.
-  select * into v_bid from public.bids where id = p_bid_id;
+  -- Re-read WITH a lock: a revise in flight holds this row (it never touches the
+  -- request, so the request lock above does not serialise it). FOR UPDATE waits
+  -- for that revise to commit and then reads the revised values.
+  select * into v_bid from public.bids where id = p_bid_id for update;
   if v_bid.status <> 'pending' then
     raise exception 'bid is not pending (it is %)', v_bid.status using errcode = 'P0001';
   end if;
-  if v_bid.price <> p_expected_price or v_bid.turnaround_days <> p_expected_turnaround then
+  if v_bid.price is distinct from p_expected_price or v_bid.turnaround_days is distinct from p_expected_turnaround then
     raise exception 'bid was revised since you last saw it — please review the new terms' using errcode = 'P0001';
   end if;
 
@@ -135,7 +140,10 @@ begin
   if v_order.tailor_id <> v_uid then
     raise exception 'Only the tailor can advance an order' using errcode = '42501';
   end if;
-  if v_order.status <> p_expected_status then
+  if p_expected_status is null then
+    raise exception 'expected status is required' using errcode = 'P0001';
+  end if;
+  if v_order.status is distinct from p_expected_status then
     raise exception 'order is "%", not "%" — refresh and try again', v_order.status, p_expected_status using errcode = 'P0001';
   end if;
 

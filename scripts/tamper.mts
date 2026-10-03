@@ -112,18 +112,26 @@ try {
     const order = await rest(tailorA, "GET", `orders?id=eq.${orderId}&select=*`);
     const msgs = await rest(tailorA, "GET", `messages?order_id=eq.${orderId}&select=body`);
     const post = await rest(tailorA, "POST", "messages", { order_id: orderId, body: "let me in" });
+    // Realtime: the spy (non-participant) and a control (the real tailor) subscribe to the same filter.
+    // Silence from the spy only counts if the control actually received the event.
     const received: string[] = [];
-    const ch = tailorA.client.channel(`spy-${orderId}`).on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `order_id=eq.${orderId}` }, (p) => received.push((p.new as { body: string }).body));
-    await new Promise<void>((res, rej) => ch.subscribe((s, e) => { if (s === "SUBSCRIBED") res(); if (s === "CHANNEL_ERROR") rej(e); }));
+    const control: string[] = [];
+    await tailorA.client.realtime.setAuth();
+    await tailorB.client.realtime.setAuth();
+    const spy = tailorA.client.channel(`spy-${orderId}`).on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `order_id=eq.${orderId}` }, (p) => received.push((p.new as { body: string }).body));
+    const legit = tailorB.client.channel(`legit-${orderId}`).on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `order_id=eq.${orderId}` }, (p) => control.push((p.new as { body: string }).body));
+    await Promise.all([spy, legit].map((ch) => new Promise<void>((res, rej) => ch.subscribe((s, e) => { if (s === "SUBSCRIBED") res(); if (s === "CHANNEL_ERROR") rej(e); }))));
     await new Promise((r) => setTimeout(r, 1500));
     await customer.client.from("messages").insert({ order_id: orderId, body: "another private message" });
-    await new Promise((r) => setTimeout(r, 4000));
-    await tailorA.client.removeAllChannels();
-    tailorA.client.realtime.disconnect();
-    const held = Array.isArray(order.body) && order.body.length === 0 && Array.isArray(msgs.body) && msgs.body.length === 0 && post.status === 403 && received.length === 0;
+    const deadline = Date.now() + 15000;
+    while (!control.includes("another private message") && Date.now() < deadline) await new Promise((r) => setTimeout(r, 250));
+    await new Promise((r) => setTimeout(r, 1000));
+    for (const a of [tailorA, tailorB]) { await a.client.removeAllChannels(); a.client.realtime.disconnect(); }
+    const controlOk = control.includes("another private message");
+    const held = Array.isArray(order.body) && order.body.length === 0 && Array.isArray(msgs.body) && msgs.body.length === 0 && post.status === 403 && received.length === 0 && controlOk;
     record(3, "Open an order chat you're not part of by changing the order ID",
       `GET /rest/v1/orders?id=eq.<order> · GET /rest/v1/messages?order_id=eq.<order> · POST /rest/v1/messages · Realtime subscribe to messages:order_id=eq.<order>, all as a tailor who lost the bid`,
-      `order → ${short(order.body)} (page would 404) · messages → ${short(msgs.body)} · POST → HTTP ${post.status} ${short(post.body)} · realtime events received: ${received.length}`,
+      `order → ${short(order.body)} (page would 404) · messages → ${short(msgs.body)} · POST → HTTP ${post.status} ${short(post.body)} · realtime events: spy ${received.length}, participant control ${control.length}${controlOk ? "" : " (CONTROL DID NOT RECEIVE — realtime leg inconclusive)"}`,
       held);
   }
 

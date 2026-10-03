@@ -73,7 +73,7 @@ test("THE TRAP: a bid becomes uneditable the instant its request closes (state c
   assert.deepEqual(a.data, { price: 100, status: "closed" });
 
   const late = await tailorC.client.from("bids").insert({ request_id: requestId, price: 50, turnaround_days: 1, note: "late" });
-  expectCode(late.error, "42501", "bid on closed request");
+  expectCode(late.error, "P0001", "bid on closed request");
 });
 
 test("a request cannot be accepted twice", async () => {
@@ -140,6 +140,9 @@ test("CHAT via Realtime: a non-participant subscription receives no events for t
     .channel(`legit-${orderId}`)
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `order_id=eq.${orderId}` }, (p) => received.push(`legit:${(p.new as { body: string }).body}`));
 
+  // make sure each socket joins with its user's JWT (otherwise it would be anon and see nothing either way)
+  await tailorA.client.realtime.setAuth();
+  await tailorB.client.realtime.setAuth();
   await Promise.all([spyChannel, legitChannel].map((ch) => new Promise<void>((resolve, reject) => {
     ch.subscribe((status, err) => { if (status === "SUBSCRIBED") resolve(); if (status === "CHANNEL_ERROR") reject(err); });
   })));
@@ -194,4 +197,38 @@ test("ORDER PIPELINE: only the tailor advances, strictly linearly, with double-c
 test("orders cannot be edited directly by anyone", async () => {
   const { error } = await tailorB.client.from("orders").update({ status: "accepted" }).eq("id", orderId);
   expectCode(error, "42501", "direct order update");
+});
+
+test("RACE: a revision that lands while the customer is accepting is caught, not silently accepted at the old price", async () => {
+  const { Client } = await import("pg");
+  const r = await newRequestWithBids("Race coat");
+  // The tailor's revision holds the bid's row lock and has not committed yet.
+  const lockHolder = new Client({ connectionString: process.env.SUPABASE_DB_URL });
+  await lockHolder.connect();
+  await lockHolder.query("begin");
+  await lockHolder.query("update public.bids set price = 150 where id = $1", [r.bidA]);
+
+  // The customer accepts at the price they saw (100). This must block on the bid row...
+  // supabase-js builders are lazy: force the HTTP request to leave now, before the commit.
+  const accepting = Promise.resolve().then(() => customer.client.rpc("accept_bid", { p_bid_id: r.bidA, p_expected_price: 100, p_expected_turnaround: 5 }));
+  await new Promise((res) => setTimeout(res, 700));
+  await lockHolder.query("commit");
+  await lockHolder.end();
+  const { error } = await accepting;
+
+  // ...and then see the new price and refuse.
+  expectCode(error, "P0001", "accept during revise");
+  assert.match(error!.message, /revised/i);
+  const bid = await customer.client.from("bids").select("status, price").eq("id", r.bidA).single();
+  assert.deepEqual(bid.data, { status: "pending", price: 150 });
+  const order = await customer.client.from("orders").select("id").eq("request_id", r.requestId);
+  assert.deepEqual(order.data, []);
+});
+
+test("accept and advance refuse missing expected values instead of skipping the check", async () => {
+  const r = await newRequestWithBids("Null coat");
+  const nullPrice = await customer.client.rpc("accept_bid", { p_bid_id: r.bidB, p_expected_price: null as unknown as number, p_expected_turnaround: 3 });
+  expectCode(nullPrice.error, "P0001", "null expected price");
+  const nullStatus = await tailorB.client.rpc("advance_order", { p_order_id: orderId, p_expected_status: null as unknown as string });
+  expectCode(nullStatus.error, "P0001", "null expected status");
 });

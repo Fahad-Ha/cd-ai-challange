@@ -27,12 +27,13 @@ Environment variables (see `.env.example`):
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The app, in the browser and on the server. Public by design; RLS does the protecting. |
 | `SUPABASE_SECRET_KEY` | Only `scripts/seed.mts` and `scripts/tamper.mts`, to create test users. Never referenced by app code. |
+| `SUPABASE_DB_URL` | Only `tests/db`, for catalog assertions and the lock-race test. |
 | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | Only `src/lib/ai.ts` (`server-only`). Without a key the description falls back to a stub. |
 
 ## Tests and evidence
 
 ```bash
-npm run test:db     # 47 database tests: every policy, grant, trigger and function, run as real signed-in users
+npm run test:db     # 54 database tests: every policy, grant, trigger and function (as real signed-in users), catalog checks, a lock-race test
 npm run test:e2e    # 22 browser tests across signup, requests, blind bidding, accept, chat, pipeline, reviews, profile
 npm run build && npm run tamper   # the five attacks from the brief; exits 1 if any succeeds
 npm run lint && npx tsc --noEmit
