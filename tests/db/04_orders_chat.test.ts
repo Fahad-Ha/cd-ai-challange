@@ -143,14 +143,27 @@ test("CHAT via Realtime: a non-participant subscription receives no events for t
   await Promise.all([spyChannel, legitChannel].map((ch) => new Promise<void>((resolve, reject) => {
     ch.subscribe((status, err) => { if (status === "SUBSCRIBED") resolve(); if (status === "CHANNEL_ERROR") reject(err); });
   })));
-  await new Promise((r) => setTimeout(r, 500));
+  await new Promise((r) => setTimeout(r, 1500)); // let the postgres_changes listener attach
 
-  await customer.client.from("messages").insert({ order_id: orderId, body: "realtime ping" });
-  await new Promise((r) => setTimeout(r, 2500));
-
-  assert.deepEqual(received, ["legit:realtime ping"]);
-  await tailorA.client.removeAllChannels();
-  await tailorB.client.removeAllChannels();
+  try {
+    await customer.client.from("messages").insert({ order_id: orderId, body: "realtime ping" });
+    // Poll instead of a fixed sleep: the local Realtime server is slow when the
+    // whole suite subscribes at once. Then a short grace period for the spy.
+    const deadline = Date.now() + 15000;
+    while (!received.includes("legit:realtime ping") && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+    // The participant gets the event (Realtime may also replay inserts from just
+    // before the subscription attached); the non-participant gets nothing at all.
+    assert.ok(received.includes("legit:realtime ping"), `participant did not receive the ping: ${JSON.stringify(received)}`);
+    assert.deepEqual(received.filter((r) => r.startsWith("spy:")), [], `non-participant received events: ${JSON.stringify(received)}`);
+  } finally {
+    for (const u of [tailorA, tailorB]) {
+      await u.client.removeAllChannels();
+      u.client.realtime.disconnect(); // otherwise the open socket keeps the test process alive
+    }
+  }
 });
 
 test("ORDER PIPELINE: only the tailor advances, strictly linearly, with double-click protection", async () => {
