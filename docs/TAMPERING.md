@@ -2,9 +2,7 @@
 
 Every rule in MyTailor is enforced inside Postgres (row-level security, column grants, triggers, and three locked functions). The app never checks "may this user do this" in TypeScript. So the honest way to test it is to skip the app entirely: take the public key and a real user's JWT, hit the REST and Realtime APIs directly, and watch what the database says.
 
-That is exactly what `scripts/tamper.mts` does. It creates throwaway accounts, sets up the situations the brief describes, performs each attack with raw `fetch` calls (so the HTTP status is visible, exactly as it would be in the browser's network tab), and prints the result. Run it with `npm run tamper` (local stack) or point it at the hosted project.
-
-The same five attacks, and about fifty more edge cases, are also asserted by the database test suite in `tests/db/` (`npm run test:db`, 54 tests, including catalog checks of the actual grants and a deterministic lock-race test), and the three that have a UI are covered again by the browser tests in `tests/e2e/`.
+During development that was done with a script: it created throwaway accounts, set up the situations the brief describes, performed each attack with raw `fetch` calls (so the HTTP status was visible, exactly as it would be in the browser's network tab) and printed the result. Its raw output, first against the local stack and then against the production project after `supabase db push`, is reproduced at the end of this document. The script and the database test suite behind it were removed from the repository once the design was settled; the attacks are repeated by hand in the live session with `docs/tamper-console.js`, which does the same calls from the browser console as the logged-in user.
 
 ## Summary
 
@@ -36,7 +34,7 @@ The same five attacks, and about fifty more edge cases, are also asserted by the
 
 **Why.** The `bids` SELECT policy is `tailor_id = auth.uid() OR <I own the request>`. Rows that fail it do not error; they do not exist for that connection, so filtering by id finds nothing. `bid_revisions` has no policy of its own; it asks "can you see the parent bid?" and inherits the answer. The aggregate is the one place a tailor learns anything about competitors, and it was the hardest part to get right: with two bids, `2 × average − mine` is the other tailor's price exactly, and min/max are always somebody's bid. So the function returns the count always, averages only once three bids exist, and never min/max. Realtime is irrelevant here because `bids` is not in the `supabase_realtime` publication.
 
-**In the UI.** The tailor's page shows "On the table: 2 bids, averages unlock at 3 bids (2/3 so far)". The browser tests additionally assert that the page's text never contains a competitor's price, note, or name.
+**In the UI.** The tailor's page shows "On the table: 2 bids, averages unlock at 3 bids (2/3 so far)".
 
 ### 3. Open an order chat you're not part of by changing the order ID
 
@@ -50,7 +48,7 @@ The same five attacks, and about fifty more edge cases, are also asserted by the
 
 ### 4. Post a review on an order that isn't completed, or on someone else's order
 
-**Attempt.** As the customer, review my own order while it is still `accepted`; as a stranger, review it; as the tailor, review myself. (The database suite also posts a second review on a completed order.)
+**Attempt.** As the customer, review my own order while it is still `accepted`; as a stranger, review it; as the tailor, review myself. Then, on a completed order, post a second review.
 
 **What happened.** 403 for all three. The duplicate review returns 409 (`23505`).
 
@@ -64,11 +62,11 @@ The same five attacks, and about fifty more edge cases, are also asserted by the
 
 **What happened.** 0 matches.
 
-**Why.** Only `src/lib/ai.ts` reads the variable, and that file begins with `import "server-only"`, which makes any import from a client component a build error. It is called from a Route Handler that first verifies the session (`401` when signed out), refuses photo paths outside the caller's own folder (`403`), and downloads the photo with the caller's own Supabase client so storage RLS decides what can be described. The browser only ever sees the resulting text.
+**Why.** Only `src/lib/ai.ts` reads the variable, and that file begins with `import "server-only"`, which makes any import from a client component a build error. It is called from a Route Handler that first verifies the session (`401` when signed out), refuses photo paths outside the caller's own folder (`403`), charges a database-side quota before spending anything (`429` once a user passes 15 calls in a day or everyone together passes 200), and downloads the photos with the caller's own Supabase client so storage RLS decides what can be described. The browser only ever sees the resulting text.
 
 ## Raw output of the script (hosted project, 2026-10-04)
 
-Same script, pointed at the production Supabase project after `supabase db push`. The database suite (54 tests) was also run against it first: 54 passed. Attack 5 scans the local production build (`.next/static`), which is the same bundle Vercel serves.
+Same script, pointed at the production Supabase project after `supabase db push`. Attack 5 scans the local production build (`.next/static`), which is the same bundle Vercel serves.
 
 ```
     Target: https://zthrdbbunspivagzwdjd.supabase.co
@@ -148,21 +146,9 @@ Same script, pointed at the production Supabase project after `supabase db push`
     All five attacks failed cleanly — PASS
 ```
 
-## Reproducing
+## Reproducing by hand
 
-```bash
-npx supabase start            # local stack
-npm run db:reset              # apply the nine migrations
-npm run test:db               # 54 database tests, all run as real signed-in users (plus catalog + lock-race checks)
-OPENROUTER_API_KEY=sk-or-v1-anything npm run build
-npm run tamper                # the five attacks, exits 1 if any succeeds
-```
-
-Against the hosted project, create `.env.hosted` with the production URL, keys and session-pooler `SUPABASE_DB_URL`, then:
-
-```bash
-npx supabase db push --db-url "$SUPABASE_DB_URL"
-node --import tsx --env-file=.env.hosted --test --test-concurrency=1 "tests/db/*.test.ts"
-node --import tsx --env-file=.env.hosted scripts/seed.mts
-node --import tsx --env-file=.env.hosted scripts/tamper.mts
-```
+1. Log in to the deployed site as the user you want to attack as (demo accounts: `customer@demo.local` and `tailor@demo.local`, password `demo1234`; sign up a second tailor for attack 2).
+2. Open DevTools → Console, paste `docs/tamper-console.js`, press Enter. It reads your login token from the cookie and defines `api(path, body)`.
+3. Run the attack lines it prints, filling in ids from the page URLs. The responses should match the ones above: `403` with `42501` for anything you may not do, empty arrays for rows that do not exist for you, `409` for a duplicate review.
+4. For attack 5, search the loaded JavaScript in the Sources tab for `sk-or-` and `OPENROUTER`.

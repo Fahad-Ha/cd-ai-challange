@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/format";
 
-export interface ChatMessage {
+interface ChatMessage {
   id: string;
   sender_id: string;
   body: string;

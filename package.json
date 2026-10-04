@@ -7,13 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:db": "node --import tsx --env-file=.env.local --test --test-timeout=30000 --test-concurrency=1 \"tests/db/*.test.ts\"",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/lib/types.ts",
     "seed": "tsx --env-file=.env.local scripts/seed.mts",
-    "tamper": "tsx --env-file=.env.local scripts/tamper.mts",
-    "test:e2e": "playwright test",
-    "check-bundle": "sh scripts/check-bundle.sh"
+    "seed:hosted": "tsx --env-file=.env.hosted scripts/seed.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -24,20 +21,15 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/pg": "^8.23.1",
+    "@types/node": "^24.19.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/ws": "^8.18.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
-    "pg": "^8.23.1",
     "supabase": "^2.119.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5",
-    "ws": "^8.22.0"
+    "typescript": "^5"
   }
 }

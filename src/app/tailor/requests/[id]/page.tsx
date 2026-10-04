@@ -14,7 +14,7 @@ export default async function TailorRequestPage({ params }: { params: Promise<{ 
   const supabase = await createClient();
   const { data: request } = await supabase
     .from("requests")
-    .select("id, title, description, photo_path, status, created_at, closed_at, profiles(display_name)")
+    .select("id, title, description, photo_paths, status, created_at, closed_at, profiles(display_name)")
     .eq("id", id)
     .maybeSingle();
   if (!request) notFound();
@@ -50,7 +50,7 @@ export default async function TailorRequestPage({ params }: { params: Promise<{ 
           )}
           <div className="mt-4">
             {open ? (
-              <BidForm requestId={request.id} bid={bid ? { id: bid.id, price: Number(bid.price), turnaround_days: bid.turnaround_days, note: bid.note } : null} />
+              <BidForm requestId={request.id} bid={bid ? { id: bid.id, price: Number(bid.price), turnaround_days: bid.turnaround_days, note: bid.note, status: bid.status } : null} />
             ) : bid?.status === "accepted" ? (
               <div className="grid gap-3">
                 <p className="alert alert-ok">Your bid was accepted. The request has closed.</p>

@@ -12,7 +12,7 @@
 --      holding the publishable key at /rest/v1/rpc/<name>. A SECURITY DEFINER
 --      function callable by anon is an open door.
 -- From this point on every table and every function lists its grants next to
--- its policies, and tests/db/00_catalog.test.ts asserts nothing slipped through.
+-- its policies.
 -- ---------------------------------------------------------------------------
 alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated;
 alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated;

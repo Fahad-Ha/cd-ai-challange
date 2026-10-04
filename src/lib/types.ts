@@ -23,7 +23,39 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "bid_revisions": {
+            "ai_usage": {
+                  Row: {
+                    "calls": number,"day": string,"user_id": string
+                  }
+                  Insert: {
+                    "calls"?: number,"day"?: string,"user_id": string
+                  }
+                  Update: {
+                    "calls"?: number,"day"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_usage_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ai_usage_global": {
+                  Row: {
+                    "calls": number,"day": string
+                  }
+                  Insert: {
+                    "calls"?: number,"day"?: string
+                  }
+                  Update: {
+                    "calls"?: number,"day"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"bid_revisions": {
                   Row: {
                     "bid_id": string,"created_at": string,"id": string,"note": string,"price": number,"revision_no": number,"status": string,"turnaround_days": number
                   }
@@ -144,13 +176,13 @@ isOneToOne: false
                   ]
                 },"requests": {
                   Row: {
-                    "closed_at": string | null,"created_at": string,"customer_id": string,"description": string,"id": string,"photo_path": string | null,"status": string,"title": string
+                    "closed_at": string | null,"created_at": string,"customer_id": string,"description": string,"id": string,"photo_paths": (string)[],"status": string,"title": string
                   }
                   Insert: {
-                    "closed_at"?: string | null,"created_at"?: string,"customer_id"?: string,"description": string,"id"?: string,"photo_path"?: string | null,"status"?: string,"title": string
+                    "closed_at"?: string | null,"created_at"?: string,"customer_id"?: string,"description": string,"id"?: string,"photo_paths"?: (string)[],"status"?: string,"title": string
                   }
                   Update: {
-                    "closed_at"?: string | null,"created_at"?: string,"customer_id"?: string,"description"?: string,"id"?: string,"photo_path"?: string | null,"status"?: string,"title"?: string
+                    "closed_at"?: string | null,"created_at"?: string,"customer_id"?: string,"description"?: string,"id"?: string,"photo_paths"?: (string)[],"status"?: string,"title"?: string
                   }
                   Relationships: [
                     {
@@ -203,6 +235,11 @@ isOneToOne: false
                            },
 "advance_order":
 { Args: { "p_expected_status": string,"p_order_id": string }; Returns: string
+                           },
+"consume_ai_credit":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "remaining_today": number
+            }[]
                            },
 "decline_bid":
 { Args: { "p_bid_id": string }; Returns: undefined

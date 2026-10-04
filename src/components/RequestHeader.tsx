@@ -1,24 +1,27 @@
 import { Pill } from "@/components/Pill";
+import { PhotoGallery } from "@/components/PhotoGallery";
 import { timeAgo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-export interface RequestSummary {
+interface RequestSummary {
   id: string;
   title: string;
   description: string;
-  photo_path: string | null;
+  photo_paths: string[];
   status: string;
   created_at: string;
   closed_at: string | null;
 }
 
-/** Title, status, photo (via a signed URL created with the viewer's own session) and description. */
+/** Title, status, photos (signed URLs created with the viewer's own session) and description. */
 export async function RequestHeader({ request, postedBy }: { request: RequestSummary; postedBy?: string }) {
-  let photoUrl: string | null = null;
-  if (request.photo_path) {
+  const photos: { url: string; alt: string }[] = [];
+  if (request.photo_paths.length > 0) {
     const supabase = await createClient();
-    const { data } = await supabase.storage.from("reference-photos").createSignedUrl(request.photo_path, 600);
-    photoUrl = data?.signedUrl ?? null;
+    const { data } = await supabase.storage.from("reference-photos").createSignedUrls(request.photo_paths, 600);
+    for (const d of data ?? []) {
+      if (d.signedUrl) photos.push({ url: d.signedUrl, alt: `Reference photo ${photos.length + 1} of ${request.photo_paths.length}` });
+    }
   }
   return (
     <section className="card">
@@ -31,10 +34,9 @@ export async function RequestHeader({ request, postedBy }: { request: RequestSum
         {timeAgo(request.created_at)}
         {request.closed_at ? ` · closed ${timeAgo(request.closed_at)}` : ""}
       </p>
-      {photoUrl && (
-        <div className="piece mt-4 overflow-hidden bg-pencil-soft/40">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photoUrl} alt="Reference photo" className="mx-auto max-h-96 w-auto max-w-full object-contain" />
+      {photos.length > 0 && (
+        <div className="mt-4">
+          <PhotoGallery photos={photos} />
         </div>
       )}
       <p className="mt-4 max-w-prose whitespace-pre-line leading-relaxed">{request.description}</p>

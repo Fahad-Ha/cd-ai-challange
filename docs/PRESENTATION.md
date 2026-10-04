@@ -2,22 +2,27 @@
 
 ## Before the session
 
-- `npm run seed` against the project you will demo (hosted for the real thing). Four accounts, password `demo1234`: `customer@demo.local`, `tailor.a@demo.local`, `tailor.b@demo.local`, `tailor.c@demo.local`.
-- Two browser profiles open: one as the customer, one as tailor A. A third tab signed in as tailor B.
-- A terminal with `npm run tamper` ready to run, and `docs/TAMPERING.md` open.
+- `npm run seed:hosted` the night before. Two accounts, password `demo1234`: `customer@demo.local` and `tailor@demo.local`, with an open request (pending bid), an order in progress with a chat, and a completed, reviewed order. Sign up a second tailor live if you want to show blind bidding with two bidders.
+- Two browser profiles open: one as the customer, one as the tailor.
+- `docs/TAMPERING.md` open for the expected responses.
 - Have the DevTools Network tab visible in the tailor window.
 
-## 1. The demo (5 min): the five attacks
+## 1. The demo (5 min): the five attacks, by hand
 
-Lead with the evidence, use the UI only to make it concrete.
+The panel should watch the server say no. Do the attacks live in DevTools; `docs/TAMPERING.md` has the recorded responses if anything misbehaves on the day.
 
-1. Run `npm run tamper` live. While it runs (about ten seconds), say what it is: throwaway accounts, raw REST calls with the public key and a real JWT, the same thing a curious student with DevTools would try. Read the five verdicts off the summary.
-2. Pick one attack and do it by hand so it is not "a script says so":
-   - As tailor A on the open request, open DevTools, copy the `bids` request from the Network tab, change the filter to the request id with no tailor filter, resend. One row comes back: your own. Point at the aggregate card: "This is all a tailor ever sees of the competition, and only once three bids exist. With two, the average is the other tailor's price in disguise."
-3. As the customer, accept tailor B. Switch to tailor A's tab, reload: bid frozen, form gone, "this request has closed". Try the edit anyway in DevTools: zero rows. "No flag was copied onto the bid. The policy reads the parent request."
-4. Open the order as the customer, send a message, show it arrive live for tailor B. Paste the order URL into tailor A's tab: 404.
+Setup (once, before the session): in each browser window, log in, open DevTools → Console, paste the contents of `docs/tamper-console.js`, press Enter. It reads your login token from the cookie and gives you one helper, `api(...)`, that calls the Supabase REST API exactly as the app does. It prints the five attack lines so you can copy them.
 
-If time is short, do steps 1 and 3 only.
+Suggested order, about a minute each:
+
+1. **Tailor accepts their own bid.** In tailor A's window on the open request, run `document.querySelector('[name=bid_id]').value` to get the bid id, then the Attack 1 line. Red `HTTP 403`, message "Only the request's customer can accept a bid". Reload: still pending.
+2. **Tailor reads the competition.** Same window, Attack 2 with the request id from the URL. One row comes back, yours. Then `request_bid_stats`: a count and, with fewer than three bids, nulls. Say why: with two bids the average is the other price.
+3. **The trap.** In the customer's window, accept tailor B. Back in tailor A's window, reload: form gone, "this request has closed". Now try the edit anyway: `api('bids?id=eq.<bid id>', ...)` is a GET, so instead show that the Update button no longer exists and the row is frozen: `api('bids?select=status&id=eq.<bid id>')` → `closed`. No flag was copied; the rule reads the parent request.
+4. **A stranger in the chat.** Copy the order URL from the customer's window into tailor A's window: 404. Then Attack 3: orders → `[]`, messages → `[]`, POST → `403`. Send a message from the customer's window and show it arrive live in tailor B's window, and nowhere else.
+5. **Review too early.** In the customer's window, Attack 4 with the in-progress order: `403`. Advance the order to completed as tailor B, post a review through the UI, then run Attack 4 again: `409`, one review per order.
+6. **The key.** In the Sources tab, Ctrl/Cmd+Shift+F, search `sk-or-`. Nothing. Mention the `server-only` import that makes this a build error, not a habit.
+
+If time is short, do 1, 3 and 4.
 
 ## 2. The walkthrough (8 min): schema and the decisions behind it
 
@@ -50,7 +55,7 @@ Keep the vocabulary for the end: "this is called row-level security, and Supabas
 - *"Could a tailor still learn a competitor's price?"* With exactly three bids, the sum of the other two. That is the trade-off I chose; the alternative was hiding the aggregate entirely.
 - *"What about the service-role key?"* It exists only in the seed and tampering scripts. The app has no admin client at all.
 - *"Why is the role not in the JWT?"* A custom access-token hook would do that; it is more setup and the claim only refreshes with the token. One query per request against `profiles` was enough here.
-- *"How do you know Realtime respects RLS?"* The tamper script subscribes as a non-participant and counts events: zero. I did not take it on faith; the first version of that test also taught me Realtime replays recent inserts to a new subscriber.
+- *"How do you know Realtime respects RLS?"* I subscribed as a non-participant while a participant was also subscribed and counted events: zero against one. I did not take it on faith; doing that also taught me Realtime replays recent inserts to a new subscriber.
 - *"Would this scale?"* The policies use `(select auth.uid())` so Postgres evaluates it once per statement, and the subqueries hit indexes. I have not load-tested it. I would start with `explain analyze` on the bids SELECT under a tailor's JWT.
 - *"What did you not finish?"* Email confirmation is off for the demo, the AI rate limit is per instance, there is no request cancellation, and no RTL yet.
 - Wrong-on-purpose questions (for example "so RLS is like a WHERE clause the frontend adds?"): correct gently by asking where the WHERE clause runs, and who wrote it.

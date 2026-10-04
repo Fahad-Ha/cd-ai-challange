@@ -12,15 +12,22 @@ export interface FormState {
 export async function createRequest(_prev: FormState, formData: FormData): Promise<FormState> {
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const photo = String(formData.get("photo_path") ?? "").trim();
+  let photo_paths: string[] = [];
+  try {
+    const parsed: unknown = JSON.parse(String(formData.get("photo_paths") ?? "[]"));
+    photo_paths = Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string" && p.length <= 512) : [];
+  } catch {
+    photo_paths = [];
+  }
 
   if (title.length < 1 || title.length > 120) return { error: "Give the request a title (up to 120 characters)." };
   if (description.length < 1 || description.length > 4000) return { error: "Describe what you need (up to 4000 characters)." };
+  if (photo_paths.length > 6) return { error: "Attach up to 6 photos." };
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("requests")
-    .insert({ title, description, photo_path: photo || null })
+    .insert({ title, description, photo_paths })
     .select("id")
     .single();
   if (error || !data) return { error: friendlyError(error, "Could not post the request.") };

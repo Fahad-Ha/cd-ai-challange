@@ -5,7 +5,7 @@ const STEPS = [
   { key: "completed", label: "Completed" },
 ] as const;
 
-export type OrderStatus = (typeof STEPS)[number]["key"];
+type OrderStatus = (typeof STEPS)[number]["key"];
 
 export function nextStep(status: string): { to: OrderStatus; label: string } | null {
   switch (status) {

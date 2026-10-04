@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { RequestHeader } from "@/components/RequestHeader";
 import { BidActions } from "@/components/BidActions";
+import { Avatar } from "@/components/Avatar";
 import { Pill } from "@/components/Pill";
 import { days, formatKwd, timeAgo } from "@/lib/format";
 
@@ -13,7 +14,7 @@ export default async function CustomerRequestPage({ params }: { params: Promise<
   const supabase = await createClient();
   const { data: request } = await supabase
     .from("requests")
-    .select("id, title, description, photo_path, status, created_at, closed_at")
+    .select("id, title, description, photo_paths, status, created_at, closed_at")
     .eq("id", id)
     .maybeSingle();
   if (!request) notFound(); // RLS returns nothing for other people's requests
@@ -45,10 +46,19 @@ export default async function CustomerRequestPage({ params }: { params: Promise<
               return (
                 <li key={b.id} data-bid={b.id} className={`rounded-field border p-4 ${b.status === "accepted" ? "border-tailor bg-tailor-soft/40" : "border-line"}`}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <Link href={`/tailors/${b.tailor_id}`} className="font-semibold hover:text-pencil">{b.profiles?.display_name ?? "Tailor"}</Link>
-                      <p className="text-xs text-muted">{revisions} revision{revisions === 1 ? "" : "s"} · {timeAgo(b.updated_at)}</p>
-                    </div>
+                    <Link
+                      href={`/tailors/${b.tailor_id}`}
+                      title="View this tailor's profile and reviews"
+                      className="group flex items-center gap-3 rounded-field pr-2 transition-colors hover:text-pencil"
+                    >
+                      <Avatar name={b.profiles?.display_name ?? "Tailor"} role="tailor" size="md" />
+                      <span>
+                        <span className="block font-semibold group-hover:underline">{b.profiles?.display_name ?? "Tailor"}</span>
+                        <span className="block text-xs text-muted">
+                          {revisions} revision{revisions === 1 ? "" : "s"} · {timeAgo(b.updated_at)} · <span className="text-pencil">View profile</span>
+                        </span>
+                      </span>
+                    </Link>
                     <Pill status={b.status} />
                   </div>
                   <p className="mt-3 stat">{formatKwd(Number(b.price))}<small>in {days(b.turnaround_days)}</small></p>

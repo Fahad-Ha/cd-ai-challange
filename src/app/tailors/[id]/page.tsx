@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { RatingStars } from "@/components/RatingStars";
+import { Avatar } from "@/components/Avatar";
 import { formatDate } from "@/lib/format";
 
 /** Stretch goal: a tailor's public reputation, derived in the database. */
@@ -19,13 +20,12 @@ export default async function TailorProfilePage({ params }: { params: Promise<{ 
   const avg = stats?.avg_rating != null ? Number(stats.avg_rating) : null;
   const reviewCount = stats?.review_count ?? 0;
   const completed = stats?.completed_orders ?? 0;
-  const initials = tailor.display_name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6">
       <section className="card">
         <div className="flex items-center gap-4">
-          <span className="avatar avatar-tailor h-14 w-14 text-xl" aria-hidden="true">{initials}</span>
+          <Avatar name={tailor.display_name} role="tailor" size="lg" />
           <div>
             <h1 className="text-3xl font-medium sm:text-4xl">{tailor.display_name}</h1>
             <p className="text-sm text-tailor">Tailor · on MyTailor since {formatDate(tailor.created_at)}</p>

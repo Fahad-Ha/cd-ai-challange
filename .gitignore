@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files: everything ignored except the example (no secrets in it)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -40,17 +41,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# env (the example file is tracked on purpose)
-.env*.local
-.env
-!.env.example
 
 # supabase
 supabase/.temp
 supabase/.branches
 
-# superpowers scratch
+# local scratch (agent ledgers, browser-tool snapshots)
 .superpowers/
 .playwright-mcp/
-test-results/
-playwright-report/
