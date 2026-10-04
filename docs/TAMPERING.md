@@ -66,6 +66,48 @@ The same five attacks, and about fifty more edge cases, are also asserted by the
 
 **Why.** Only `src/lib/ai.ts` reads the variable, and that file begins with `import "server-only"`, which makes any import from a client component a build error. It is called from a Route Handler that first verifies the session (`401` when signed out), refuses photo paths outside the caller's own folder (`403`), and downloads the photo with the caller's own Supabase client so storage RLS decides what can be described. The browser only ever sees the resulting text.
 
+## Raw output of the script (hosted project, 2026-10-04)
+
+Same script, pointed at the production Supabase project after `supabase db push`. The database suite (54 tests) was also run against it first: 54 passed. Attack 5 scans the local production build (`.next/static`), which is the same bundle Vercel serves.
+
+```
+    Target: https://zthrdbbunspivagzwdjd.supabase.co
+    
+    [1] Accept your own bid as a tailor
+        attempt : POST /rest/v1/rpc/accept_bid {p_bid_id: <my bid>} as Attacker Tailor
+        response: HTTP 403 {"code":"42501","details":null,"hint":null,"message":"Only the request's customer can accept a bid"} — bid status afterwards: pending
+        verdict : HELD ✅
+    
+    [2] Fetch another tailor's full bid on a request you're also bidding on
+        attempt : GET /rest/v1/bids?request_id=eq.<request> · GET /rest/v1/bids?id=eq.<B's bid id> · GET /rest/v1/bid_revisions?bid_id=eq.<B's bid id> · POST rpc/request_bid_stats
+        response: list → [{"id":"0dc050a1-a668-42b3-8411-5c4a9755c5eb","price":100,"note":"A","tailor_id":"eb0a20b5-5be9-42e9-a4b0-8ac619456fd8"}] (only my own row) · direct → HTTP 200 [] · revisions → [] · stats → [{"bid_count":2,"avg_price":null,"avg_turnaround":null}] (2 bids: count only, averages withheld)
+        verdict : HELD ✅
+    
+    [3] Open an order chat you're not part of by changing the order ID
+        attempt : GET /rest/v1/orders?id=eq.<order> · GET /rest/v1/messages?order_id=eq.<order> · POST /rest/v1/messages · Realtime subscribe to messages:order_id=eq.<order>, all as a tailor who lost the bid
+        response: order → [] (page would 404) · messages → [] · POST → HTTP 403 {"code":"42501","details":null,"hint":null,"message":"new row violates row-level security policy for table \"messages\""} · realtime events: spy 0, participant control 1
+        verdict : HELD ✅
+    
+    [4] Post a review on an order that isn't completed, or on someone else's order
+        attempt : POST /rest/v1/reviews as the customer (order status: accepted) · as a stranger · as the tailor
+        response: not completed → HTTP 403 {"code":"42501","details":null,"hint":null,"message":"new row violates row-level security policy for table \"reviews\""} · stranger → HTTP 403 · tailor → HTTP 403
+        verdict : HELD ✅
+    
+    [5] Search the client bundle for the AI API key
+        attempt : scan every file under .next/static for "sk-or-", "OPENROUTER_API_KEY" and the key value itself
+        response: 0 matches
+        verdict : HELD ✅
+    
+    ==== TAMPERING TEST SUMMARY ====
+    HELD    [1] Accept your own bid as a tailor
+    HELD    [2] Fetch another tailor's full bid on a request you're also bidding on
+    HELD    [3] Open an order chat you're not part of by changing the order ID
+    HELD    [4] Post a review on an order that isn't completed, or on someone else's order
+    HELD    [5] Search the client bundle for the AI API key
+    
+    All five attacks failed cleanly — PASS
+```
+
 ## Raw output of the script (local stack)
 
 ```
@@ -116,4 +158,11 @@ OPENROUTER_API_KEY=sk-or-v1-anything npm run build
 npm run tamper                # the five attacks, exits 1 if any succeeds
 ```
 
-Against the hosted project, create `.env.hosted` with the production URL and keys and run `npx tsx --env-file=.env.hosted scripts/tamper.mts`.
+Against the hosted project, create `.env.hosted` with the production URL, keys and session-pooler `SUPABASE_DB_URL`, then:
+
+```bash
+npx supabase db push --db-url "$SUPABASE_DB_URL"
+node --import tsx --env-file=.env.hosted --test --test-concurrency=1 "tests/db/*.test.ts"
+node --import tsx --env-file=.env.hosted scripts/seed.mts
+node --import tsx --env-file=.env.hosted scripts/tamper.mts
+```
