@@ -49,7 +49,7 @@ The Tampering Test and how to repeat each attack (in the browser, or with `curl`
 
 ```
 supabase/migrations/   0001 privileges · 0002 profiles · 0003 requests · 0004 bids · 0005 orders
-                       0006 messages · 0007 reviews · 0008 rpcs (accept/decline/advance) · 0009 storage · 0010 multi-photo · 0011 ai quota · 0012 quota tightened
+                       0006 messages · 0007 reviews · 0008 rpcs (accept/decline/advance) · 0009 storage · 0010 multi-photo · 0011 ai quota · 0012 quota tightened · 0013 photo access tightened
 src/lib/supabase/      SSR clients (server, browser, proxy)
 src/lib/auth.ts        getProfile / requireRole — role comes from the profiles table, never user_metadata
 src/lib/ai.ts          server-only OpenRouter call

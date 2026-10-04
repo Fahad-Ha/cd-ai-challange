@@ -1,4 +1,6 @@
-# The Tampering Test — what happened
+# Write-up 1: The Tampering Test
+
+Fahad Ahmad · 4 October 2026 · Live site: https://coded-ai-challange.vercel.app · Repo: https://github.com/Fahad-Ha/cd-ai-challange
 
 Every rule in MyTailor is enforced inside Postgres (row-level security, column grants, triggers, and three locked functions). The app never checks "may this user do this" in TypeScript. So the honest way to test it is to skip the app entirely: take the public key and a real user's JWT, hit the REST and Realtime APIs directly, and watch what the database says.
 
@@ -34,7 +36,7 @@ During development I did that with a throwaway script: it created test accounts,
 
 **Why.** The `bids` SELECT policy is `tailor_id = auth.uid() OR <I own the request>`. Rows that fail it do not error; they do not exist for that connection, so filtering by id finds nothing. `bid_revisions` has no policy of its own; it asks "can you see the parent bid?" and inherits the answer. The aggregate is the one place a tailor learns anything about competitors, and it was the hardest part to get right: with two bids, `2 × average − mine` is the other tailor's price exactly, and min/max are always somebody's bid. So the function returns the count always, averages only once three bids exist, and never min/max. Realtime is irrelevant here because `bids` is not in the `supabase_realtime` publication.
 
-**In the UI.** The tailor's page shows "On the table: 2 bids, averages unlock at 3 bids (2/3 so far)".
+**In the UI.** The tailor's page shows the summary card with "2 bids so far. Averages appear once there are 3."
 
 ### 3. Open an order chat you're not part of by changing the order ID
 
@@ -148,7 +150,7 @@ The same attacks, run against the production Supabase project after the migratio
 
 ## Reproducing by hand
 
-Demo accounts: `customer@demo.local` and `tailor@demo.local`, password `demo1234`. Sign up a second tailor if you want two bidders.
+Demo accounts: `customer@demo.local` and `tailor@demo.local`, password `demo1234`. Sign up more tailors if you want several bids on one request.
 
 **In the browser, no tools needed**
 

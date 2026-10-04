@@ -10,8 +10,8 @@ export async function BidStats({ requestId }: { requestId: string }) {
 
   return (
     <section className="piece bg-surface/70 p-5">
-      <h2 className="text-2xl font-medium">On the table</h2>
-      <p className="mt-1 text-sm text-muted">Tailors never see each other&apos;s bids. Only this.</p>
+      <h2 className="text-2xl font-medium">All bids on this request</h2>
+      <p className="mt-1 text-sm text-muted">A summary only. No tailor can see another tailor&apos;s bid.</p>
       <dl className="mt-4 grid grid-cols-[auto_1fr_1fr] gap-4">
         <div>
           <dt className="text-xs font-semibold text-muted">Bids</dt>
@@ -28,8 +28,8 @@ export async function BidStats({ requestId }: { requestId: string }) {
       </dl>
       <p className="mt-3 text-xs text-muted">
         {unlocked
-          ? `Based on all ${count} bids. Rounded, so no single bid can be worked out from them.`
-          : `${count} ${count === 1 ? "bid" : "bids"} so far. Averages unlock at 3 bids, so no single bid can be worked out from them.`}
+          ? `Averages of all ${count} bids.`
+          : `${count} ${count === 1 ? "bid" : "bids"} so far. Averages appear once there are 3.`}
       </p>
     </section>
   );

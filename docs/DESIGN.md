@@ -1,4 +1,6 @@
-# Schema and access-control decisions
+# Write-up 2: Schema and access-control decisions
+
+Fahad Ahmad · 4 October 2026 · Live site: https://coded-ai-challange.vercel.app · Repo: https://github.com/Fahad-Ha/cd-ai-challange
 
 This is the second write-up: what the schema is, why each rule lives where it does, what breaks without it, and what I tried that did not work. The migrations in `supabase/migrations/` are the source of truth; each file opens with a comment saying what it protects and why.
 
@@ -26,6 +28,8 @@ Plus triggers for the two state machines, so the allowed transitions hold for ev
 | `messages` | Order chat | `sender_id` defaults to `auth.uid()`; not insertable. The only table in the Realtime publication. |
 | `reviews` | One per order (`UNIQUE`) | `customer_id` defaults to `auth.uid()`. Rating 1 to 5 by CHECK. |
 
+Reference photos live in a private storage bucket under a folder named by the customer's id. A customer can read and write only their own folder. A tailor can read a photo only if it is attached to a request they are entitled to see: an open request, or a request whose order is theirs; unattached uploads and other tailors' closed jobs are not readable. Nobody else can see anything. The app shows photos through short-lived signed links created with the viewer's own session, so the same rule gates the link as gates the file. (The first version let any tailor read any file in the bucket; since paths are random that was hard to abuse, but "hard to find" is not "not allowed", so it was tightened.)
+
 Derived values, never stored and never accepted from a client: the bid aggregate per request, a tailor's rating, review count and completed-order count, and "is this request open".
 
 ## The trap: bid mutability comes from the parent
@@ -41,31 +45,21 @@ with check (tailor_id = auth.uid() and status = 'pending'               and requ
 
 What breaks without it: a tailor could lower their price after seeing they lost, or revise a bid under a customer who is about to accept it. Which leads to the next decision.
 
-## `accept_bid()` and the races I found
+## How accepting a bid works
 
-The function locks the request row (`SELECT ... FOR UPDATE`), checks the caller is the request's customer, re-reads the bid after taking the lock, compares the price and turnaround the customer saw with what is there now, and then runs every UPDATE with its state in the WHERE clause (`... where id = $1 and status = 'pending'`), raising if zero rows changed.
+Accepting touches several rows at once: the winning bid, every other bid on the request, the request itself, and a new order. That has to be one atomic step, so it is one database function. It locks the request first, checks that the caller is the customer who posted it, confirms the request is still open and the bid still pending, and only then updates everything in a single transaction. The Accept button also sends the price and turnaround the customer saw; if the tailor revised the bid in the meantime, the function refuses with "the bid was revised, please review" instead of accepting terms the customer never agreed to (the bug behind that guard is in the list below).
+## Blind bidding and the summary that gave the price away
 
-Two races made this longer than the first draft:
+The visibility rule is simple: a tailor sees their own bid, the customer sees every bid on their own request, nobody else sees anything. The hard part was the small summary shown to tailors so they get a feel for the market ("2 bids, average 350 KWD").
 
-1. **Revise just before accept.** A tailor's revision that commits a millisecond before the customer clicks Accept means the customer accepted a price they never saw. Fix: the Accept button sends the price and turnaround it displayed; the function refuses with "bid was revised since you last saw it" if they differ.
-2. **Insert just before accept.** A new bid's RLS check (`request_is_open`) runs before the row is written, and the foreign-key lock that would wait for the accept comes later. A bid could land as `pending` on a closed request. Fix: a `BEFORE INSERT` trigger that does `SELECT ... FOR KEY SHARE` on the request with `status = 'open'`; it waits for the accept's `FOR UPDATE` to release and re-evaluates. I deliberately did not attach this to UPDATE, because an update already holds the bid's row lock and would deadlock against `accept_bid()`'s lock order (request first, then bids). The update path is already closed by the status predicate: after the accept commits, the tailor's UPDATE re-checks its WHERE against the new row version and matches nothing.
+An average can be reversed. Suppose you bid 300 and the page says "2 bids, average 350". Two bids averaging 350 add up to 700, yours is 300, so the other tailor bid 400. The summary just told you the competitor's exact price, which is the one thing blind bidding must never do. "Lowest turnaround: 5 days" leaks the same way, because the lowest value is always one specific tailor's bid.
 
-## Blind bidding and the aggregate that leaked
+So the summary now works like this: the number of bids is always shown, because it reveals nothing; averages appear only once three or more bids exist, because then you can only tell what the other bids add up to, not what any one of them is; and lowest or highest values are never shown. The card says "averages appear once there are 3" so the missing numbers do not look like a bug.
+## Things that were wrong in the first draft, found by trying to break it
 
-The policy side is simple: a tailor sees bids where `tailor_id = auth.uid()`, the customer sees bids on their own requests, nobody else sees anything. The aggregate is where I went wrong first. My first version returned count, average price, min and max turnaround. Checking the numbers made the problem obvious: with two bidders, `2 × avg − mine` is the competitor's exact price, and a min or max is by definition one person's bid. Excluding the caller's own bid is worse (with one competitor, "average of others" is their bid). A rank ("you are lowest") turns unlimited revisions into a binary search. So: count always; averages only when three or more bids exist; never min or max. With three bids a tailor can still compute the sum of the other two; that is the accepted trade-off, and the UI says "averages unlock at 3 bids" so it does not look like a bug.
-
-## Errors that mean the right thing
-
-Plain `RAISE EXCEPTION` in Postgres is SQLSTATE `P0001`, which PostgREST turns into HTTP 400. My first tampering run therefore showed attack 1 as a 400, which reads as "validation error" rather than "forbidden". Authorization failures now raise with `errcode = '42501'` (→ 403 for a signed-in user), and state failures keep `P0001` (→ 400); a bid on a request that has just closed is the latter, so the insert guard trigger raises `P0001` rather than pretending it is a permissions problem. The expected-value guards also refuse `NULL` explicitly (`NULL <> x` is not true in SQL, so a missing value would otherwise skip the check). `src/lib/errors.ts` maps those onto messages a person can act on.
-
-## Things that were wrong in the first draft, found by review or by trying to break it
-
-- **Anonymous callers could execute every function.** Supabase grants EXECUTE to `anon` and `authenticated` on new functions by default, and Postgres itself grants it to PUBLIC. A `SECURITY DEFINER` function callable with the public key is an open door. My first fix was a schema-scoped `ALTER DEFAULT PRIVILEGES ... IN SCHEMA public REVOKE EXECUTE`, and the catalog showed it had only half worked: the schema-scoped entry is a delta on top of Postgres's built-in PUBLIC grant, so Supabase's extra grants went away but every trigger function was still executable by `anon` (harmless today only because trigger functions cannot be called directly). The built-in grant needs a *global* `ALTER DEFAULT PRIVILEGES FOR ROLE postgres REVOKE EXECUTE ON FUNCTIONS FROM public`. `0001_privileges.sql` now does both and every table and function lists its grants explicitly. A one-line check against `pg_proc` (`has_function_privilege('anon', oid, 'execute')`) confirms no public function is executable by `anon`.
-- **The accept re-read was not locked.** `accept_bid()` locked the request, then re-read the bid without a lock. A tailor's revise only locks the bid row, so it was not serialised by the request lock: a revise committing between that re-read and the status UPDATE produced an order at the old price with the bid showing the new one, and the "bid was revised" guard never fired. The re-read is now `SELECT ... FOR UPDATE`; I reproduced the race with a second connection holding the bid lock mid-accept before and after the fix. Lock order is request then bid everywhere, so no deadlock.
-- **Storage read was too wide.** "Any signed-in user can read any photo" plus guessable folder names (user ids are visible in `profiles`) meant customers could read each other's photos. Now: your own folder, or any folder if you are a tailor. A request may only reference a photo under its owner's folder.
-- **`.upsert()` breaks column grants.** PostgREST's upsert becomes `ON CONFLICT DO UPDATE SET <every column>`, which fails with `permission denied` when the UPDATE grant is column-limited. The bid form therefore inserts or updates explicitly. I kept the grants: they are the one mechanism that stops a tailor rewriting `tailor_id`.
-- **Zero-row updates look like success.** When the USING clause filters out every row, PostgREST returns 200 with `[]`. The server actions call `.select('id').maybeSingle()` and treat `null` as "this bid can no longer be edited", so the UI reports a clean failure instead of pretending.
-- **Realtime replays and lags.** A fresh subscription on the local stack sometimes receives inserts from just before it attached, and delivery can take a few seconds under load. What matters, and what held every time, is that a non-participant receives nothing at all.
+- **Anyone could call the database functions, even without logging in.** By default Supabase lets anonymous callers run every new database function, and ours run with elevated rights. I revoked those defaults and granted access to signed-in users only, then checked by listing which functions an anonymous caller can run: none.
+- **Accepting a bid could use an outdated price.** If a tailor changed their price at the exact moment the customer pressed Accept, the order could be created at the old price while the bid showed the new one. The accept function now locks the bid while it works, so it either sees the new price and refuses ("the bid was revised, please review") or the revision waits until the accept is done.
+- **A blocked edit looked like a success.** When the database hides a row from you, an update of it changes zero rows and returns no error. The app now checks that a row actually changed, and shows "this bid can no longer be edited" when none did, instead of pretending the save worked.
 
 ## Stretch goal: the tailor profile, and the rest of the extra mile
 
