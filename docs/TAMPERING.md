@@ -2,7 +2,7 @@
 
 Every rule in MyTailor is enforced inside Postgres (row-level security, column grants, triggers, and three locked functions). The app never checks "may this user do this" in TypeScript. So the honest way to test it is to skip the app entirely: take the public key and a real user's JWT, hit the REST and Realtime APIs directly, and watch what the database says.
 
-During development that was done with a script: it created throwaway accounts, set up the situations the brief describes, performed each attack with raw `fetch` calls (so the HTTP status was visible, exactly as it would be in the browser's network tab) and printed the result. Its raw output, first against the local stack and then against the production project after `supabase db push`, is reproduced at the end of this document. The script and the database test suite behind it were removed from the repository once the design was settled; the attacks are repeated by hand in the live session with `docs/tamper-console.js`, which does the same calls from the browser console as the logged-in user.
+During development I did that with a throwaway script: it created test accounts, set up the situations the brief describes, performed each attack with raw `fetch` calls (so the HTTP status was visible, exactly as it would be in the browser's network tab) and printed the result. Its output, first against the local stack and then against the production project, is recorded at the end of this document. The script is not part of the submitted repository; the last section explains how to repeat each attack by hand, in the browser or with `curl`.
 
 ## Summary
 
@@ -62,11 +62,11 @@ During development that was done with a script: it created throwaway accounts, s
 
 **What happened.** 0 matches.
 
-**Why.** Only `src/lib/ai.ts` reads the variable, and that file begins with `import "server-only"`, which makes any import from a client component a build error. It is called from a Route Handler that first verifies the session (`401` when signed out), refuses photo paths outside the caller's own folder (`403`), charges a database-side quota before spending anything (`429` once a user passes 15 calls in a day or everyone together passes 200), and downloads the photos with the caller's own Supabase client so storage RLS decides what can be described. The browser only ever sees the resulting text.
+**Why.** Only `src/lib/ai.ts` reads the variable, and that file begins with `import "server-only"`, which makes any import from a client component a build error. It is called from a Route Handler that first verifies the session (`401` when signed out), refuses photo paths outside the caller's own folder (`403`), charges a database-side quota before spending anything (`429` once a user passes 3 calls in a day or everyone together passes 30), and downloads the photos with the caller's own Supabase client so storage RLS decides what can be described. The browser only ever sees the resulting text.
 
-## Raw output of the script (hosted project, 2026-10-04)
+## Recorded output, hosted project (4 October 2026)
 
-Same script, pointed at the production Supabase project after `supabase db push`. Attack 5 scans the local production build (`.next/static`), which is the same bundle Vercel serves.
+The same attacks, run against the production Supabase project after the migrations were pushed. Attack 5 scans the production build (`.next/static`), which is the same bundle Vercel serves.
 
 ```
     Target: https://zthrdbbunspivagzwdjd.supabase.co
@@ -106,7 +106,7 @@ Same script, pointed at the production Supabase project after `supabase db push`
     All five attacks failed cleanly — PASS
 ```
 
-## Raw output of the script (local stack)
+## Recorded output, local stack (3 October 2026)
 
 ```
     Target: http://127.0.0.1:54321
@@ -148,7 +148,55 @@ Same script, pointed at the production Supabase project after `supabase db push`
 
 ## Reproducing by hand
 
-1. Log in to the deployed site as the user you want to attack as (demo accounts: `customer@demo.local` and `tailor@demo.local`, password `demo1234`; sign up a second tailor for attack 2).
-2. Open DevTools → Console, paste `docs/tamper-console.js`, press Enter. It reads your login token from the cookie and defines `api(path, body)`.
-3. Run the attack lines it prints, filling in ids from the page URLs. The responses should match the ones above: `403` with `42501` for anything you may not do, empty arrays for rows that do not exist for you, `409` for a duplicate review.
-4. For attack 5, search the loaded JavaScript in the Sources tab for `sk-or-` and `OPENROUTER`.
+Demo accounts: `customer@demo.local` and `tailor@demo.local`, password `demo1234`. Sign up a second tailor if you want two bidders.
+
+**In the browser, no tools needed**
+
+- *Attack 3.* Log in as the tailor who did not win (or any new account). Paste the URL of someone else's order, `/orders/<id>`: the page is a 404. There is no chat to see.
+- *The frozen bid.* As a tailor with a pending bid, keep the request page open. As the customer, accept a different bid. Reload the tailor's page: the bid shows "Closed", the form is gone, and "This request has closed" is shown. No flag was written to the bid; the rule reads the parent request.
+- *Attack 4 (UI side).* As the customer on an order that is not completed, there is no review form. After the tailor marks it completed, the form appears; after one review it disappears.
+
+**Against the API, with `curl`** (what a user with DevTools could do; the app is not involved)
+
+1. Get the tailor's login token:
+
+   ```bash
+   URL=https://zthrdbbunspivagzwdjd.supabase.co
+   KEY=sb_publishable_BhRJGzk8GXQM9tvyPaOEVw_vEeWiGRz
+   TOKEN=$(curl -s -X POST "$URL/auth/v1/token?grant_type=password" -H "apikey: $KEY" -H "Content-Type: application/json" \
+     -d '{"email":"tailor@demo.local","password":"demo1234"}' | sed -E 's/.*"access_token":"([^"]+)".*/\1/')
+   ```
+
+2. Attack 1, accept your own bid (bid id from the tailor's request page, in the hidden `bid_id` field):
+
+   ```bash
+   curl -s -i -X POST "$URL/rest/v1/rpc/accept_bid" -H "apikey: $KEY" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"p_bid_id":"<bid id>","p_expected_price":320,"p_expected_turnaround":14}'
+   ```
+   Expected: `HTTP/2 403` and `{"code":"42501","message":"Only the request's customer can accept a bid"}`.
+
+3. Attack 2, list every bid on a request (request id from the URL):
+
+   ```bash
+   curl -s "$URL/rest/v1/bids?request_id=eq.<request id>&select=*" -H "apikey: $KEY" -H "Authorization: Bearer $TOKEN"
+   ```
+   Expected: only your own row, even when other tailors have bid.
+
+4. Attack 3, read or post into a chat you are not part of (order id from the customer's URL):
+
+   ```bash
+   curl -s "$URL/rest/v1/messages?order_id=eq.<order id>&select=*" -H "apikey: $KEY" -H "Authorization: Bearer $TOKEN"
+   curl -s -i -X POST "$URL/rest/v1/messages" -H "apikey: $KEY" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"order_id":"<order id>","body":"let me in"}'
+   ```
+   Expected: `[]`, then `HTTP/2 403` with `new row violates row-level security policy`.
+
+5. Attack 4, review an order that is not completed (log in as the customer in step 1 instead):
+
+   ```bash
+   curl -s -i -X POST "$URL/rest/v1/reviews" -H "apikey: $KEY" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"order_id":"<order id>","tailor_id":"<tailor id>","rating":5,"comment":"too early"}'
+   ```
+   Expected: `HTTP/2 403`.
+
+6. Attack 5: in the browser's Sources tab, search the loaded JavaScript for `sk-or-` and `OPENROUTER`. Nothing.

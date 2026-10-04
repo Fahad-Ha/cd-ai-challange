@@ -67,13 +67,30 @@ Plain `RAISE EXCEPTION` in Postgres is SQLSTATE `P0001`, which PostgREST turns i
 - **Zero-row updates look like success.** When the USING clause filters out every row, PostgREST returns 200 with `[]`. The server actions call `.select('id').maybeSingle()` and treat `null` as "this bid can no longer be edited", so the UI reports a clean failure instead of pretending.
 - **Realtime replays and lags.** A fresh subscription on the local stack sometimes receives inserts from just before it attached, and delivery can take a few seconds under load. What matters, and what held every time, is that a non-participant receives nothing at all.
 
-## Stretch goal: the tailor profile
+## Stretch goal: the tailor profile, and the rest of the extra mile
 
-`/tailors/[id]` shows a tailor's average rating, review count and completed-order count. All three come from one function, `tailor_stats()`, that aggregates `reviews` and `orders` in the database. There is no column anyone could edit, and the page says so. It is small on purpose: the point is "derived values live where the data lives", and it reuses the review flow the brief already required.
+**The feature.** `/tailors/[id]`: a tailor's average rating, review count, completed orders, and their reviews. Every bid in the customer's list links to it, so a customer can check who they are hiring before pressing Accept.
+
+**Why this one.** The brief requires reviews but never says what they are for; without a place to land they are write-only. Reputation is also the one signal a customer has for choosing between bids, since prices alone say nothing about who will deliver.
+
+**How, and why it matters.** The three numbers come from one database function, `tailor_stats()`, computed from `reviews` and `orders` on each request. There is no rating column anywhere, so nothing can be typed in, drift, or be edited by a tailor; a score only moves by completing an order and being reviewed by its real customer, once. The page says so in one line, because "could a tailor fake it?" is the first question anyone asks.
+
+**Also beyond the brief**, each added because it removes a way to get stuck:
+
+- Up to six reference photos per request, with a gallery and full-screen viewer; the storage rule is checked per photo.
+- The AI reads all photos at once, with a visible "looking at your photos" state.
+- A database-side AI quota (3 per user per day, 30 overall) so the OpenRouter key cannot be burned.
+- Live counts in the navigation (bids awaiting a decision, orders in progress) and "Your bid: pending" on each open request.
+- An explicit Edit step on an existing bid, and revision counts visible to the customer.
+- A price guard on Accept: the customer accepts the exact terms they saw, or is told the bid changed.
+
+## The first deploy was slow, and the code was not the reason
+
+Signed-in pages on the first Vercel deployment took 2 to 3 seconds to finish, although the first byte arrived in under 100 ms. The response header `x-vercel-id: bom1::iad1::…` explained it: requests entered Vercel's Mumbai edge but the server function ran in Washington, Vercel's default region, while the Supabase project is in Mumbai. A page makes several sequential database and auth calls, and each one was crossing the globe. Pinning the function region to Mumbai (`vercel.json`, `"regions": ["bom1"]`) brought the same pages down to 0.3 to 0.6 seconds with no code change. The lesson for the walkthrough: put the server next to the database, and measure where the time goes before optimising code.
 
 ## Protecting the AI key from being burned
 
-Three layers. The key itself never leaves the server (`server-only`, tampering attack 5). The route refuses anonymous callers, photos outside the caller's own folder, more than six images, and more than ten calls a minute from one user on one instance. And `consume_ai_credit()` keeps two counters in the database, per user per day (15) and global per day (200), with no client grants on the tables and the limits fixed inside the function so nothing can be passed in over REST; the route calls it before it spends anything and returns 429 with a plain message when a limit is hit. The hard stop is outside the code: a credit limit on the key in the OpenRouter dashboard.
+Three layers. The key itself never leaves the server (`server-only`, tampering attack 5). The route refuses anonymous callers, photos outside the caller's own folder, more than six images, and more than ten calls a minute from one user on one instance. And `consume_ai_credit()` keeps two counters in the database, per user per day (3) and global per day (30), with no client grants on the tables and the limits fixed inside the function so nothing can be passed in over REST; the route calls it before it spends anything and returns 429 with a plain message when a limit is hit. The hard stop is outside the code: a credit limit on the key in the OpenRouter dashboard.
 
 ## Known limits and what I would do next
 

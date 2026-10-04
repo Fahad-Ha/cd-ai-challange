@@ -2,7 +2,7 @@
 
 A two-sided bespoke-tailoring marketplace: customers post requests (optionally described from a photo by an AI call), tailors bid blind, the customer accepts one bid, and the two of them get a private chat and a linear order pipeline that ends in a review. Built for the CODED Teaching Assistant assessment.
 
-Every access rule is enforced inside Postgres with Supabase row-level security, column grants, triggers, and three locked functions. The app never checks authorization in TypeScript. The evidence is the Tampering Test write-up, `docs/TAMPERING.md`; the reasoning is `docs/DESIGN.md`; the attacks can be repeated by hand with `docs/tamper-console.js`.
+Every access rule is enforced inside Postgres with Supabase row-level security, column grants, triggers, and three locked functions. The app never checks authorization in TypeScript. The evidence is the Tampering Test write-up, `docs/TAMPERING.md`; the reasoning is `docs/DESIGN.md`.
 
 ## Stack
 
@@ -28,7 +28,7 @@ Environment variables (see `.env.example`):
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The app, in the browser and on the server. Public by design; RLS does the protecting. |
 | `SUPABASE_SECRET_KEY` | Only `scripts/seed.mts`, to create the demo accounts. Never referenced by app code. |
 | `SUPABASE_DB_URL` | Optional, only for `npx supabase db push --db-url` to the hosted project. |
-| `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | Only `src/lib/ai.ts` (`server-only`). Without a key the description falls back to a stub. Usage is capped in the database: 15 descriptions per user per day and 200 per day in total (`supabase/migrations/0011_ai_usage.sql`); set a credit limit on the key in the OpenRouter dashboard as the hard stop. |
+| `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | Only `src/lib/ai.ts` (`server-only`). Without a key the description falls back to a stub. Usage is capped in the database: 3 descriptions per user per day and 30 per day in total (`supabase/migrations/0011_ai_usage.sql`, tightened in `0012`); set a credit limit on the key in the OpenRouter dashboard as the hard stop. |
 
 ## Verifying it
 
@@ -36,7 +36,7 @@ Environment variables (see `.env.example`):
 npm run lint && npx tsc --noEmit && npm run build
 ```
 
-Then the Tampering Test by hand: log in, open DevTools → Console, paste `docs/tamper-console.js`, and run the five attack lines it prints. Each one calls the Supabase REST API directly with the public key and your own login token; the expected responses are in `docs/TAMPERING.md`.
+The Tampering Test and how to repeat each attack (in the browser, or with `curl` against the REST API) are in `docs/TAMPERING.md`.
 
 ## Deploy
 
@@ -49,12 +49,12 @@ Then the Tampering Test by hand: log in, open DevTools → Console, paste `docs/
 
 ```
 supabase/migrations/   0001 privileges · 0002 profiles · 0003 requests · 0004 bids · 0005 orders
-                       0006 messages · 0007 reviews · 0008 rpcs (accept/decline/advance) · 0009 storage · 0010 multi-photo · 0011 ai quota
+                       0006 messages · 0007 reviews · 0008 rpcs (accept/decline/advance) · 0009 storage · 0010 multi-photo · 0011 ai quota · 0012 quota tightened
 src/lib/supabase/      SSR clients (server, browser, proxy)
 src/lib/auth.ts        getProfile / requireRole — role comes from the profiles table, never user_metadata
 src/lib/ai.ts          server-only OpenRouter call
 src/app/               (auth) · customer/requests · tailor/requests · orders · tailors/[id] · api/describe-photo
 src/components/        BidForm, BidStats, BidActions, Chat, StatusStepper, ReviewForm, …
 scripts/               seed.mts (demo accounts and data) · seed-photos/ (licensed demo images)
-docs/                  TAMPERING.md, DESIGN.md, PRESENTATION.md, tamper-console.js (manual attacks in DevTools)
+docs/                  TAMPERING.md, DESIGN.md (the two write-ups)
 ```
